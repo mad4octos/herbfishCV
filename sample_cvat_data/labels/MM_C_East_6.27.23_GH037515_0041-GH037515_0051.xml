@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotations>
+  <version>1.1</version>
+  <meta>
+    <job>
+      <id>644054</id>
+      <size>11</size>
+      <mode>annotation</mode>
+      <overlap>0</overlap>
+      <bugtracker></bugtracker>
+      <created>2024-03-14 23:26:19.854492+00:00</created>
+      <updated>2024-03-22 19:00:07.952146+00:00</updated>
+      <subset>default</subset>
+      <start_frame>0</start_frame>
+      <stop_frame>10</stop_frame>
+      <frame_filter></frame_filter>
+      <segments>
+        <segment>
+          <id>645398</id>
+          <start>0</start>
+          <stop>10</stop>
+          <url>https://app.cvat.ai/api/jobs/644054</url>
+        </segment>
+      </segments>
+      <owner>
+        <username>michael22</username>
+        <email>mikegil@sciall.org</email>
+      </owner>
+      <assignee></assignee>
+      <labels>
+        <label>
+          <name>Parrotfish</name>
+          <color>#18400a</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Tang</name>
+          <color>#257942</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+      </labels>
+    </job>
+    <dumped>2024-03-22 19:00:47.456404+00:00</dumped>
+  </meta>
+  <image id="0" name="GH037515_0041.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="721.00,727.70;721.10,728.00;736.40,737.00;743.00,735.00;759.50,738.20;771.70,746.10;791.00,764.60;793.40,762.90;793.30,750.40;785.10,736.30;770.60,725.80;752.10,727.30;741.40,725.20" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="835.40,825.40;828.50,824.00;813.60,823.00;796.50,830.60;794.40,838.90;816.80,841.40;828.10,836.00" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1021.30,940.10;1026.70,950.40;1031.40,948.40;1039.00,959.00;1044.50,974.80;1047.80,969.60;1050.40,957.00;1047.90,947.30;1041.50,942.30" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="56.00,554.00;60.40,564.40;62.00,575.00;68.00,580.00;77.30,577.70;75.60,570.00;66.60,559.00;63.00,554.00" z_order="0">
+    </polygon>
+  </image>
+  <image id="1" name="GH037515_0042.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="53.10,601.30;21.70,598.70;25.40,611.50;62.20,612.20;96.40,613.90;119.50,605.40;109.00,600.00;99.00,596.00;85.30,594.50;69.50,594.80" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="986.50,966.20;980.40,975.50;968.60,982.70;966.00,1008.00;971.50,1018.10;981.80,1010.80;985.60,984.70;994.10,969.50" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="585.80,254.70;586.00,261.00;593.40,264.50;606.00,270.60;616.80,268.20;612.00,263.50;604.10,259.00;592.70,256.40" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="734.30,595.10;731.00,603.90;730.40,610.00;733.00,616.00;748.90,619.70;757.00,613.00;759.00,606.00;755.30,599.50;746.00,594.30" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="2255.80,372.80;2270.80,377.80;2302.90,373.00;2300.60,369.70;2289.00,368.40;2272.20,365.00" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="800.30,867.10;807.20,879.90;818.10,887.40;827.70,898.70;840.00,904.80;839.40,895.90;835.20,887.10;822.30,876.00;809.00,874.10" z_order="0">
+    </polygon>
+  </image>
+  <image id="2" name="GH037515_0043.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1045.80,1153.40;1040.10,1144.80;1029.80,1142.40;1005.20,1147.20;994.60,1136.70;994.00,1145.00;985.90,1150.10;998.00,1153.50;1005.10,1165.90;1028.40,1168.60;1045.90,1163.50" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="862.00,908.00;852.40,908.40;865.30,913.90;864.30,922.50;888.20,936.00;894.40,930.20;893.60,914.50;880.70,904.30;869.00,909.50;862.50,901.20" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="785.30,318.00;787.10,319.70;790.00,319.60;793.30,319.90;799.80,319.80;806.10,319.60;808.10,318.00;802.80,314.40;796.60,312.00;784.50,310.70;782.20,311.50" z_order="0">
+    </polygon>
+  </image>
+  <image id="3" name="GH037515_0044.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1288.90,970.80;1272.30,965.00;1252.70,968.00;1233.80,974.30;1237.60,980.70;1249.30,979.90;1264.50,985.60;1280.00,981.00;1290.20,976.60" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="976.00,596.00;979.60,606.60;987.00,617.00;994.00,619.00;1000.00,618.00;995.40,607.20;988.00,600.60" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1573.80,917.70;1574.20,923.80;1571.00,936.00;1566.30,954.00;1570.20,961.20;1577.30,956.60;1581.80,946.00;1581.40,930.00" z_order="0">
+    </polygon>
+  </image>
+  <image id="4" name="GH037515_0045.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1098.20,1455.90;1076.10,1464.70;1062.20,1450.30;1055.60,1430.50;1037.80,1439.20;1048.80,1468.50;1076.00,1480.30;1082.40,1470.50;1099.10,1461.80" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="976.00,627.90;973.40,637.50;970.50,650.30;971.40,663.70;977.30,671.10;983.90,665.70;987.70,654.90;983.00,636.80" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="327.80,832.50;312.00,826.00;306.60,840.30;292.50,849.20;279.40,861.10;271.90,875.10;265.80,894.80;281.00,890.00;301.90,875.80;309.50,858.10;323.00,839.00" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="711.50,289.20;697.50,291.60;690.50,293.10;686.50,297.80;690.00,302.00;710.90,297.80;714.40,290.60" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="1" points="1887.70,323.80;1880.30,326.00;1870.70,330.00;1864.70,338.70;1866.40,346.20;1888.60,327.90" z_order="0">
+    </polygon>
+  </image>
+  <image id="5" name="GH037515_0046.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="226.60,1296.40;218.80,1288.80;206.40,1291.80;204.60,1301.90;206.90,1309.40;211.70,1318.90;226.30,1323.60;231.90,1317.80;232.90,1309.30;228.40,1302.70" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="84.50,940.40;79.20,961.10;105.50,982.70;114.90,979.00;96.60,942.20;116.40,927.60;104.40,918.00;96.20,927.00" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="800.70,48.40;797.90,53.30;801.00,62.70;809.40,65.20;817.80,70.10;819.90,68.40;817.20,61.30;810.70,48.20" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1518.20,947.40;1510.30,950.50;1521.80,974.20;1540.90,1002.80;1545.10,1001.20;1542.30,984.50;1532.00,963.40" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="676.20,294.50;688.60,287.90;691.70,279.70;693.80,275.10;689.60,272.80;678.20,279.70;671.40,290.50" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="944.20,720.30;940.70,728.50;948.00,729.30;948.60,741.10;950.20,746.50;952.40,753.20;953.20,756.00;961.70,753.10;965.70,747.40;965.70,743.30;965.20,738.30;961.40,732.50" z_order="0">
+    </polygon>
+  </image>
+  <image id="6" name="GH037515_0047.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="976.80,822.90;971.10,830.10;976.50,838.70;997.60,855.30;1016.00,859.40;1018.70,853.40;1009.70,842.10;1003.10,837.70;999.50,833.60;990.70,828.30" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="256.60,1225.00;248.90,1215.80;240.80,1210.50;224.00,1209.40;208.00,1213.80;183.00,1224.00;162.00,1244.00;139.20,1253.10;158.40,1255.00;156.60,1262.10;170.20,1254.40;191.20,1257.00;228.10,1244.00" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1520.80,1024.40;1499.50,1042.10;1503.00,1047.90;1504.50,1043.60;1529.90,1032.40;1553.10,1023.40;1549.90,1018.60" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="399.70,223.50;400.10,227.30;406.00,232.00;416.10,233.10;433.00,229.50;432.00,224.10;414.70,219.00;402.40,219.00" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="765.00,86.00;759.10,93.40;762.60,99.50;774.30,101.60;780.60,99.10;785.50,94.20;777.50,86.10" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1400.40,1073.70;1392.60,1073.10;1383.10,1069.10;1370.20,1066.00;1356.30,1063.60;1348.60,1069.50;1336.80,1075.10;1336.80,1081.10;1345.70,1086.30;1357.20,1091.70;1369.60,1088.40;1386.20,1082.20;1393.20,1083.20;1401.20,1081.50" z_order="0">
+    </polygon>
+  </image>
+  <image id="7" name="GH037515_0048.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="415.00,1149.20;389.30,1163.50;374.40,1158.60;343.70,1162.60;316.90,1178.10;312.70,1188.00;334.10,1198.70;369.00,1189.90;390.80,1173.30;413.80,1171.40;404.10,1161.90" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1836.00,237.00;1846.20,242.70;1857.00,244.00;1863.70,240.60;1863.60,236.20;1858.20,228.20;1838.40,228.80" z_order="0">
+    </polygon>
+  </image>
+  <image id="8" name="GH037515_0049.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1504.80,763.20;1497.80,776.70;1503.10,775.70;1530.10,806.80;1545.70,816.10;1559.40,816.20;1560.50,813.80;1558.50,798.90;1535.90,777.10;1511.60,770.40" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="319.40,1121.80;328.80,1117.70;314.00,1113.00;287.00,1124.00;273.00,1134.00;254.00,1155.00;249.90,1166.30;246.00,1183.00;248.00,1185.00;260.00,1185.00;290.00,1168.00;314.90,1145.40;316.10,1133.20;317.40,1127.10" z_order="0">
+    </polygon>
+  </image>
+  <image id="9" name="GH037515_0050.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1479.20,969.80;1480.40,989.30;1482.00,997.00;1493.00,1017.00;1500.00,1017.00;1502.00,1011.00;1501.00,999.00;1490.00,966.00;1485.00,964.00" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="1679.70,910.40;1679.70,915.60;1685.20,917.60;1696.50,917.20;1703.40,911.80;1686.00,897.30;1682.50,902.40" z_order="0">
+    </polygon>
+  </image>
+  <image id="10" name="GH037515_0051.png" width="2704" height="1520">
+    <polygon label="Tang" source="semi-auto" occluded="0" points="2306.70,944.70;2318.00,930.00;2328.00,924.00;2341.00,921.00;2382.60,935.20;2409.20,935.10;2406.40,943.10;2405.00,950.10;2383.60,947.80;2361.00,957.00;2333.00,958.00;2314.00,951.00;2307.30,948.70" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1521.90,941.20;1508.30,941.30;1494.30,945.60;1490.30,951.10;1497.50,958.70;1505.70,962.50;1515.30,963.70;1519.50,962.70;1524.90,963.70;1529.40,962.60;1531.30,963.30;1536.60,961.70;1534.40,963.00;1541.20,962.10;1545.10,956.50;1541.70,947.30" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1583.30,899.40;1580.50,915.40;1579.40,933.90;1583.00,942.90;1592.20,950.50;1598.30,950.70;1599.50,932.70;1590.00,911.80;1586.60,897.70" z_order="0">
+    </polygon>
+  </image>
+</annotations>

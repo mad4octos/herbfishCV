@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotations>
+  <version>1.1</version>
+  <meta>
+    <task>
+      <id>515357</id>
+      <name>GH027515_0001-GH027515_0010</name>
+      <size>10</size>
+      <mode>annotation</mode>
+      <overlap>0</overlap>
+      <bugtracker></bugtracker>
+      <created>2024-02-20 19:03:13.326973+00:00</created>
+      <updated>2024-03-29 23:26:47.489799+00:00</updated>
+      <subset>default</subset>
+      <start_frame>0</start_frame>
+      <stop_frame>9</stop_frame>
+      <frame_filter></frame_filter>
+      <segments>
+        <segment>
+          <id>584520</id>
+          <start>0</start>
+          <stop>9</stop>
+          <url>https://app.cvat.ai/api/jobs/583376</url>
+        </segment>
+      </segments>
+      <owner>
+        <username>michael22</username>
+        <email>mikegil@sciall.org</email>
+      </owner>
+      <assignee></assignee>
+      <labels>
+        <label>
+          <name>SV</name>
+          <color>#75cb0a</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>IP</name>
+          <color>#fa32b7</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>IR</name>
+          <color>#fa32b7</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>TR</name>
+          <color>#8f1662</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>IG</name>
+          <color>#11e6cd</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>TG</name>
+          <color>#fa3253</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>IH</name>
+          <color>#fa3253</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>TH</name>
+          <color>#ff00cc</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>SC</name>
+          <color>#2cc787</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>SP</name>
+          <color>#24b353</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>SG</name>
+          <color>#3df53d</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>SJ</name>
+          <color>#66ff66</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>ST</name>
+          <color>#32b7fa</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>TL</name>
+          <color>#5986b3</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>OTHER</name>
+          <color>#3d3df5</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>BALL</name>
+          <color>#33ddff</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Parrotfish</name>
+          <color>#33ddff</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Tang</name>
+          <color>#fa3253</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Jack</name>
+          <color>#34d1b7</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Lizardfish</name>
+          <color>#ff6037</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Trumpetfish</name>
+          <color>#ddff33</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Chromis</name>
+          <color>#66ff66</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Grunt</name>
+          <color>#32b7fa</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Snapper</name>
+          <color>#ffcc33</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Wrasse</name>
+          <color>#83e070</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Butterflyfish</name>
+          <color>#5986b3</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Damselfish</name>
+          <color>#8c78f0</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Goatfish</name>
+          <color>#ff6a4d</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Angelfish</name>
+          <color>#f078f0</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Grouper</name>
+          <color>#2a7dd1</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Other</name>
+          <color>#b25050</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+        <label>
+          <name>Fish</name>
+          <color>#e06080</color>
+          <type>any</type>
+          <attributes>
+          </attributes>
+        </label>
+      </labels>
+    </task>
+    <dumped>2024-04-01 17:01:17.405043+00:00</dumped>
+  </meta>
+  <image id="0" name="GH027515_0001.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1015.21,872.89;1015.07,870.15;1010.16,862.65;1003.09,855.59;993.72,848.95;986.80,845.06;980.88,842.17;975.83,844.33;981.60,849.24;988.24,856.16;994.15,863.95;998.48,868.57;1005.98,872.17;1013.05,874.05" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="1" points="1915.26,531.33;1910.47,526.55;1903.29,524.45;1893.72,524.45;1884.75,527.74;1880.26,531.03;1870.99,531.33;1873.09,537.91;1882.96,535.52;1890.73,534.03;1898.51,537.31;1908.08,541.50" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="0.00,1422.50;8.95,1423.52;20.16,1423.02;19.66,1428.00;15.43,1433.99;5.71,1440.22;0.00,1443.95;0.00,1430.86" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="2651.14,711.08;2647.40,705.47;2640.55,696.13;2634.11,690.10;2626.43,687.61;2614.38,688.03;2606.90,688.44;2587.38,685.12;2587.38,693.22;2595.69,700.90;2606.69,704.43;2613.96,710.87;2623.10,714.61;2634.94,716.48;2645.12,715.86;2649.27,715.23" z_order="0">
+    </polygon>
+  </image>
+  <image id="1" name="GH027515_0002.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1738.34,359.71;1738.63,356.68;1744.40,348.75;1751.47,344.13;1759.98,341.82;1770.51,340.09;1778.87,339.95;1782.19,339.95;1784.35,340.67;1784.07,343.41;1777.86,346.73;1766.90,353.36;1758.54,358.27;1749.88,361.29;1745.84,361.44" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="1925.60,379.48;1929.23,376.19;1934.25,373.42;1938.58,375.15;1939.97,379.48;1940.14,384.67;1937.37,385.37;1933.73,386.75;1928.20,385.89;1926.98,383.29" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="553.00,1073.20;560.40,1067.10;570.60,1059.80;576.70,1070.60;587.00,1074.00;598.00,1081.00;603.60,1085.30;611.60,1094.70;610.00,1104.00;607.60,1116.60;599.10,1125.20;584.00,1122.00;570.00,1114.00;566.00,1102.00;567.00,1082.00;546.40,1079.20" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="1266.82,1011.87;1272.01,1010.21;1272.84,1006.47;1269.72,1001.69;1262.25,995.46;1252.90,992.14;1242.10,992.76;1235.66,993.59;1242.10,999.61;1248.33,999.41;1257.68,1004.60;1262.87,1009.17;1263.91,1011.66" z_order="0">
+    </polygon>
+  </image>
+  <image id="2" name="GH027515_0003.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1450.59,609.50;1453.08,601.81;1453.08,587.48;1451.00,569.80;1456.61,561.10;1457.86,560.69;1461.39,566.92;1463.47,576.47;1462.63,584.78;1461.18,592.26;1458.90,600.15;1457.65,602.64;1457.86,609.50" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1498.02,1157.62;1495.42,1152.77;1484.17,1147.58;1472.06,1145.50;1466.52,1148.79;1464.27,1151.39;1456.83,1151.04;1459.42,1164.54;1468.77,1162.12;1479.50,1165.58;1489.54,1169.74;1494.73,1168.70;1498.19,1163.51" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="529.48,937.28;521.25,934.04;507.55,940.52;519.51,945.75;525.49,952.48;531.72,952.98;539.70,956.20;556.00,958.00;568.00,953.00;572.00,947.00;572.00,942.00;566.00,935.00;555.00,933.50;538.00,937.30" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1619.92,314.61;1625.53,312.11;1633.84,312.11;1640.28,315.02;1647.34,320.42;1652.95,325.41;1659.59,332.47;1655.23,335.38;1649.80,330.00;1640.90,328.94;1633.01,327.07;1624.29,324.16;1619.72,319.38" z_order="0">
+    </polygon>
+    <polygon label="Tang" source="semi-auto" occluded="0" points="106.87,284.85;112.36,279.12;117.84,277.87;126.81,279.37;135.78,283.11;137.53,284.60;145.75,283.86;144.01,290.34;136.78,289.34;130.80,293.83;122.08,294.82;114.85,293.83;109.61,290.83" z_order="0">
+    </polygon>
+  </image>
+  <image id="3" name="GH027515_0004.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1694.61,752.18;1695.65,748.03;1700.43,741.59;1706.24,738.89;1712.06,739.72;1715.17,738.27;1715.38,741.80;1715.17,746.37;1712.89,749.90;1707.07,754.47;1702.30,755.92;1696.30,755.50" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1394.10,333.50;1391.09,328.74;1390.37,322.28;1391.45,316.18;1396.80,308.60;1403.40,305.70;1408.50,304.10;1408.31,313.67;1408.31,319.41;1406.88,325.51;1400.78,331.25" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1640.38,812.08;1646.61,808.55;1654.09,809.18;1663.64,813.54;1672.37,818.73;1679.64,823.51;1692.31,824.55;1688.15,833.06;1677.35,828.70;1665.51,828.91;1649.31,827.25;1641.21,823.72;1639.14,818.52" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="575.00,888.72;559.00,885.82;549.66,889.97;540.73,893.92;530.97,889.97;523.28,879.17;528.27,871.90;547.79,867.33;560.67,870.03;574.58,877.72;579.77,884.57;578.53,888.31" z_order="0">
+    </polygon>
+  </image>
+  <image id="4" name="GH027515_0005.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1533.16,624.94;1531.14,624.80;1526.80,629.60;1524.20,635.80;1523.10,638.80;1517.15,636.91;1518.01,652.92;1520.03,651.77;1523.78,647.15;1529.55,647.44;1535.46,646.00;1537.77,639.94;1538.78,634.60;1536.47,628.26;1535.61,626.09" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="169.21,810.79;169.64,796.58;177.39,781.08;193.76,771.60;206.68,772.46;208.40,766.00;220.03,774.62;211.41,781.08;208.83,792.71;198.93,805.20;182.13,813.38;173.51,815.10" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1180.00,260.38;1182.28,256.85;1187.06,252.48;1194.33,249.99;1204.92,248.33;1213.23,249.99;1217.18,252.48;1219.05,258.92;1219.88,266.19;1215.52,271.80;1202.02,272.22;1190.59,270.35;1183.53,265.99" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="996.87,231.94;994.36,226.92;995.43,218.66;1003.33,212.20;1008.00,210.77;1010.51,213.28;1009.07,220.10;1005.84,226.56;1004.05,230.87" z_order="0">
+    </polygon>
+  </image>
+  <image id="5" name="GH027515_0006.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1335.74,726.43;1331.25,720.20;1327.76,710.23;1328.76,702.00;1333.99,694.52;1339.47,690.04;1339.47,682.06;1350.69,685.55;1346.70,691.03;1348.20,699.51;1347.95,708.23;1347.00,716.20;1343.00,722.70;1339.50,727.20" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="0.00,965.50;16.90,965.30;45.73,965.62;45.90,967.40;22.20,971.10;0.00,976.33;0.00,968.00" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1990.46,288.58;1994.19,283.81;2002.92,279.65;2013.30,279.24;2022.20,285.10;2033.00,285.90;2033.00,290.20;2023.50,290.90;2013.93,295.02;2008.32,296.27;1998.35,296.06;1992.53,294.40" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="1960.86,326.47;1955.87,323.56;1946.74,323.56;1939.88,326.05;1933.44,325.22;1933.03,329.17;1939.26,329.79;1945.70,333.11;1953.59,333.53;1959.41,333.53;1964.60,331.04" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="829.04,220.85;832.28,216.86;838.51,213.87;845.49,215.12;849.72,217.61;856.45,219.10;855.95,225.83;849.47,224.84;841.25,226.83;835.27,227.08;831.28,225.34" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1155.50,269.80;1154.20,259.70;1153.81,250.10;1149.24,239.71;1142.59,232.65;1133.04,228.50;1128.89,230.37;1130.96,238.26;1136.36,247.60;1140.93,255.08;1146.95,263.39;1151.73,268.58" z_order="0">
+    </polygon>
+  </image>
+  <image id="6" name="GH027515_0007.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1165.99,766.70;1162.27,765.74;1157.46,760.45;1155.53,752.28;1157.94,745.19;1162.03,741.10;1165.75,736.53;1167.67,746.27;1163.83,748.67;1167.67,754.08;1171.40,758.89;1172.48,763.22;1171.04,766.46" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="260.45,283.31;264.44,277.82;274.91,272.84;287.87,270.85;300.10,273.60;310.50,277.10;327.50,282.31;326.50,285.80;309.80,287.00;297.09,292.53;284.13,294.77;272.17,294.27;264.44,289.79" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1877.46,304.40;1880.91,301.38;1890.38,297.08;1900.29,299.23;1903.73,301.38;1899.00,304.40;1889.52,307.41;1882.20,307.41" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1527.85,163.04;1533.20,158.30;1541.91,156.76;1549.09,159.15;1560.15,163.94;1564.34,167.53;1562.25,171.12;1554.17,172.31;1543.70,172.31;1534.73,169.32;1530.84,166.63" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="0.00,955.85;8.69,951.71;29.37,944.39;41.42,935.78;63.82,928.89;34.10,921.13;26.35,932.33;12.14,933.62;0.00,933.60" z_order="0">
+    </polygon>
+  </image>
+  <image id="7" name="GH027515_0008.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1310.67,797.52;1304.62,794.34;1293.80,795.06;1285.87,800.26;1285.58,807.90;1284.57,818.29;1277.60,823.60;1288.00,828.20;1290.05,821.32;1300.43,816.41;1311.00,809.20;1313.13,801.84" z_order="0">
+    </polygon>
+  </image>
+  <image id="8" name="GH027515_0009.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1878.23,838.52;1873.15,830.45;1865.37,822.97;1849.82,816.69;1833.07,815.19;1823.50,818.19;1807.95,810.71;1810.64,824.47;1822.90,827.16;1837.26,836.43;1847.72,844.80;1864.17,847.20;1876.14,843.61" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1710.56,333.42;1707.45,328.06;1704.85,319.75;1705.37,313.17;1706.06,304.87;1706.76,302.79;1710.39,301.75;1710.91,306.60;1711.60,314.21;1715.06,320.27;1716.45,326.16;1716.97,330.31;1715.06,334.64" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="65.90,662.60;73.67,662.57;83.25,665.56;88.63,671.24;92.52,677.23;94.91,681.71;88.63,683.21;82.65,680.22;76.37,676.03;70.09,672.14;67.69,668.25" z_order="0">
+    </polygon>
+  </image>
+  <image id="9" name="GH027515_0010.png" width="2704" height="1520">
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="1743.73,329.87;1743.32,325.30;1743.73,317.00;1746.22,308.69;1749.55,303.29;1752.04,300.17;1754.32,301.21;1752.87,308.69;1752.66,313.67;1753.70,322.60;1751.00,329.46;1747.26,331.74" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="1" points="0.00,559.20;14.46,563.45;23.60,566.36;25.68,568.02;48.32,571.13;48.11,580.48;37.10,578.20;22.77,573.83;0.00,575.10" z_order="0">
+    </polygon>
+    <polygon label="Parrotfish" source="semi-auto" occluded="0" points="350.80,550.50;366.60,555.90;380.00,567.00;391.00,568.00;400.40,566.10;397.00,555.00;386.00,546.00;375.30,544.00;369.50,544.70;353.72,539.67" z_order="0">
+    </polygon>
+  </image>
+</annotations>

@@ -1,0 +1,36 @@
+path: /Users/mad4rosie/GilLab/herbfishCV/sample_cvat_data
+train: images/train
+val: images/val
+names:
+  0: SV
+  1: IP
+  2: IR
+  3: TR
+  4: IG
+  5: TG
+  6: IH
+  7: TH
+  8: SC
+  9: SP
+  10: SG
+  11: SJ
+  12: ST
+  13: TL
+  14: OTHER
+  15: BALL
+  16: Parrotfish
+  17: Tang
+  18: Jack
+  19: Lizardfish
+  20: Trumpetfish
+  21: Chromis
+  22: Grunt
+  23: Snapper
+  24: Wrasse
+  25: Butterflyfish
+  26: Damselfish
+  27: Goatfish
+  28: Angelfish
+  29: Grouper
+  30: Other
+  31: Fish
