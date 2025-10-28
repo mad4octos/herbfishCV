@@ -1,0 +1,53 @@
+from IPython import display
+from PIL import Image
+import cv2
+import torch
+import numpy as np
+
+
+def cv2_imshow(a):
+    """A replacement for cv2.imshow() for use in Jupyter notebooks.
+
+    From: Google Colab imported libraries.
+
+    Args:
+      a: np.ndarray. shape (N, M) or (N, M, 1) is an NxM grayscale image. For
+        example, a shape of (N, M, 3) is an NxM BGR color image, and a shape of
+        (N, M, 4) is an NxM BGRA color image.
+    """
+    a = a.clip(0, 255).astype("uint8")
+    # cv2 stores colors as BGR; convert to RGB
+    if a.ndim == 3:
+        if a.shape[2] == 4:
+            a = cv2.cvtColor(a, cv2.COLOR_BGRA2RGBA)
+        else:
+            a = cv2.cvtColor(a, cv2.COLOR_BGR2RGB)
+    display.display(Image.fromarray(a))
+
+
+def torch_to_cv2(image: torch.Tensor, is_mask=False) -> np.ndarray:
+    """Convert a PyTorch image tensor to an OpenCV (Numpy) image."""
+    image = image.detach()
+
+    if is_mask:
+        if image.ndim == 3:
+            image = image.squeeze()
+        image = image.to(torch.uint8)
+
+    else:
+        if image.ndim == 4:
+            image = image.squeeze()
+        image = image.permute(1, 2, 0)
+
+    return image.cpu().numpy()
+
+
+def sparse_mask_tensor_to_dense_numpy(sparse_tensor):
+    """ """
+    dense_tensor = sparse_tensor.to_dense()
+    return torch_to_cv2(dense_tensor, is_mask=True)
+
+
+def is_empty_sparse_tensor(sparse_tensor: torch.Tensor):
+    """ """
+    return sparse_tensor.values().numel() == 0
