@@ -563,7 +563,6 @@ class DatumaroDatasetBuilder:
         """
         Extract bounding boxes from frame masks.
         """
-        # input_image will be drawn when in debug mode, and the embeddings would be picked from this drawn image
         original_image = input_image.copy()
 
         all_blobs = []
@@ -586,7 +585,7 @@ class DatumaroDatasetBuilder:
                 original_image, filtered_blobs, do_mask=True
             )
 
-            # Filter blobs with a classifier, only fish will be preserved
+            # Filter blobs with a classifier, only correctly masked fish will be preserved
             classified_blobs = self._classify_blobs(filtered_blobs, blob_patches)
 
             if classified_blobs:
@@ -599,10 +598,6 @@ class DatumaroDatasetBuilder:
                 dominant_blob.compute_compactness()
 
                 self.tracker_manager.update(dominant_blob)
-
-                # FIXME: sometimes there may be a gap between obj_id observations
-                # to debug I need to write the frame idx corresponding to the values used for the calculation
-                # metrics is where the data is stored so maybe I can log the whole thing
                 results = self.tracker_manager.predict(obj_id)
 
                 # NOTE:
