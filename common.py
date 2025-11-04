@@ -28,17 +28,14 @@ def cv2_imshow(a):
 def torch_to_cv2(image: torch.Tensor, is_mask=False) -> np.ndarray:
     """Convert a PyTorch image tensor to an OpenCV (Numpy) image."""
     image = image.detach()
-
     if is_mask:
         if image.ndim == 3:
             image = image.squeeze()
         image = image.to(torch.uint8)
-
     else:
         if image.ndim == 4:
             image = image.squeeze()
         image = image.permute(1, 2, 0)
-
     return image.cpu().numpy()
 
 
@@ -48,6 +45,32 @@ def sparse_mask_tensor_to_dense_numpy(sparse_tensor):
     return torch_to_cv2(dense_tensor, is_mask=True)
 
 
+def dense_mask_numpy_to_sparse_tensor(dense_numpy: np.ndarray):
+    """ """
+    return torch.tensor(dense_numpy).to_sparse()
+
+
 def is_empty_sparse_tensor(sparse_tensor: torch.Tensor):
     """ """
     return sparse_tensor.values().numel() == 0
+
+
+def calc_sparse_memory_consumption(sparse_tensor: torch.Tensor):
+    """
+    The memory consumption of a sparse COO tensor is at least...
+    https://docs.pytorch.org/docs/stable/sparse.html#sparse-coo-tensors
+    """
+    # ndim is the dimensionality of the tensor and nse is the number of specified elements
+    ndim, nse = sparse_tensor.indices().shape
+
+    # `1` for uint8
+    element_size = 1  # size of element type in bytes
+    return (ndim * 8 + element_size) * nse
+
+
+def get_memory_consumption(dense_tensor: torch.Tensor):
+    """ """
+    h, w = dense_tensor.shape
+    # `1` for uint8
+    element_size = 1  # size of element type in bytes
+    return h * w * element_size
