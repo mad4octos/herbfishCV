@@ -1,9 +1,11 @@
 # Standard Library imports
 from pathlib import Path
 import multiprocessing as mp
+import time
 
 # External imports
 from ultralytics import YOLO
+from tqdm import tqdm
 
 # Local imports
 from convert_utils import (
@@ -48,6 +50,9 @@ class MultiBuilder:
     def build_all(self):
         """ """
 
+        total_jobs = len(self.obsId_to_folder_map)
+        pbar = tqdm(total=total_jobs, desc="Processing observations", unit="obs")
+
         try:
             for obs_id, images_path in self.obsId_to_folder_map.items():
                 masks_filepath = self.masks_path / f"{obs_id}_masks.pkl"
@@ -74,6 +79,26 @@ class MultiBuilder:
 
                 self.processes.append(process)
                 process.start()
+
+                # Wait for completion and update tqdm as each process finishes
+                completed = set()
+                while len(completed) < total_jobs:
+                    for p in self.processes:
+                        if p not in completed and not p.is_alive():
+                            completed.add(p)
+                            pbar.update(1)
+                    time.sleep(1)
+                pbar.close()
+
+                # Wait for all processes to complete
+                for p in self.processes:
+                    p.join()
+
+                # Check for failed processes
+                for p in self.processes:
+                    if p.exitcode != 0:
+                        # TODO: use logging
+                        print(f"{p.name} failed with exit code {p.exitcode}")
 
         except Exception as e:
             print("Exception", str(e))
@@ -114,6 +139,8 @@ class MultiBuilder:
                 CompactnessChangeAnomaly(),
             ]
 
+            # TODO: make all these configuration parameters
+            # TODO: Move from config.py to config.yaml
             builder = DatumaroDatasetBuilder(
                 obs_id=obs_id,
                 masks=masks,
@@ -145,7 +172,7 @@ class MultiBuilder:
                 save_media=True,
             )
 
-            print(f"[OK] Finished: {export_root_path}")
+            print(f"Finished: '{obs_id}', results written to '{export_root_path}'.")
 
         except Exception as e:
             print(f"[ERROR] Exception in '{mp.current_process().name}': {e}")
