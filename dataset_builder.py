@@ -42,6 +42,7 @@ class DatumaroDatasetBuilder:
         chunked_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         images_path: Path,
+        export_root_path: Path,
         classifier,
         blob_rules: Iterable[BlobRule],
         anomaly_rules: Iterable[FishAnomalyRule],
@@ -69,7 +70,7 @@ class DatumaroDatasetBuilder:
         self.classifier = classifier
         self.classifier_conf = classifier_conf
         self.video_writer = cv2.VideoWriter(
-            filename="tracker.mp4",
+            filename=str(export_root_path / f"{obs_id}_debug_output.mp4"),
             fourcc=cv2.VideoWriter_fourcc(*"mp4v"),  # *"MPEG", "MJPG", "mp4v", "FMP4"
             fps=2,
             frameSize=(3840, 2160),

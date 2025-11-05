@@ -2,6 +2,7 @@
 from pathlib import Path
 import multiprocessing as mp
 import time
+from typing import Optional
 
 # External imports
 from ultralytics import YOLO
@@ -24,15 +25,69 @@ from anomaly_rules import (
     CompactnessChangeAnomaly,
     SolidityChangeAnomaly,
 )
-from configuration import Config, DATA_ROOT_PATH
+from configuration import Config, DATA_ROOT_PATH, ParsedObservationID
 from dataset_builder import DatumaroDatasetBuilder
+import pandas as pd
+
+
+def find_obsId_in_errors_file(
+    obs_id_object: ParsedObservationID, errors_df: pd.DataFrame
+) -> bool:
+    """ """
+
+    for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
+        for has_token in (True, False):
+            obs_id_str = obs_id_object.to_str(
+                has_observer=False,
+                has_monopod_token=has_token,
+                output_date_format=date_format,
+            )
+            matching_rows = errors_df[errors_df.obsID == obs_id_str]
+            if not matching_rows.empty:
+                return True
+    return False
+
+
+def find_existing_file(
+    base_path: Path, obs_id_object: ParsedObservationID, suffix: str
+) -> Optional[Path]:
+    """ """
+
+    checked_files = []
+    for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
+        for has_token in (True, False):
+            obs_id_str = obs_id_object.to_str(
+                has_monopod_token=has_token,
+                output_date_format=date_format,
+            )
+            candidate = base_path / f"{obs_id_str}{suffix}"
+            checked_files.append(str(candidate))
+
+            if candidate.exists():
+                if candidate.is_file():
+                    return candidate
+
+    print("Target file wasn't found, the following files were checked:")
+    for s in checked_files:
+        print(f" - '{s}'")
+    return None
+
+
+def find_annot(base_path: Path, obs_id_object: ParsedObservationID):
+    """"""
+    return find_existing_file(base_path, obs_id_object, "_annotations.npy")
+
+
+def find_masks(base_path: Path, obs_id_object: ParsedObservationID):
+    """"""
+    return find_existing_file(base_path, obs_id_object, "_masks.pkl")
 
 
 class MultiBuilder:
     def __init__(
         self,
         errors_csv_filepath: Path,
-        obsId_to_folder_map: dict[str, Path],
+        obsId_to_folder_map: dict[ParsedObservationID, Path],
         masks_path: Path,
         annot_path: Path,
     ) -> None:
@@ -47,32 +102,73 @@ class MultiBuilder:
         errors_df = load_errors_df(self.errors_csv_filepath, obs_id)
         return extract_error_frames(errors_df)
 
-    def build_all(self):
+    def verify_existence(self):
+        """
+        Verify the existence of masks (.pkl), annotations (.npy) files, the images folder and the observation in the
+        errors file.
+        """
+        # TODO: Also log to a file!
+
+        for obs_id_object, images_path in self.obsId_to_folder_map.items():
+            print(f"* Checking existence of assets for video {obs_id_object.videoname}")
+
+            ############################################################################################################
+            # Assert existence of images directory
+            ############################################################################################################
+            assert images_path.exists(), f"{images_path} doesn't exist"
+            assert images_path.is_dir(), f"{images_path} is not a directory"
+            print(" - Found frames dir ")
+
+            ############################################################################################################
+            # Assert existence of annotations file
+            ############################################################################################################
+            assert find_annot(self.annot_path, obs_id_object) is not None, (
+                f"annotations file for video {obs_id_object.videoname} doesn't exist"
+            )
+            print(" - Found annotations file ")
+
+            ############################################################################################################
+            # Assert existence of masks file
+            ############################################################################################################
+            assert find_masks(self.masks_path, obs_id_object) is not None, (
+                f"masks file for video {obs_id_object.videoname} doesn't exist "
+            )
+            print(" - Found masks file")
+
+            ############################################################################################################
+            # Check for the existence of the observation ID on the errors file
+            ############################################################################################################
+            errors_df = pd.read_csv(self.errors_csv_filepath)
+            exists_in_errors = find_obsId_in_errors_file(obs_id_object, errors_df)
+            if not exists_in_errors:
+                print(" - [WARNING] Couldn't find observation id in errors file!")
+            else:
+                print(" - Found observation id in errors file")
+
+    def build_all(self, export_root_path: Path):
         """ """
 
         total_jobs = len(self.obsId_to_folder_map)
         pbar = tqdm(total=total_jobs, desc="Processing observations", unit="obs")
 
         try:
-            for obs_id, images_path in self.obsId_to_folder_map.items():
-                masks_filepath = self.masks_path / f"{obs_id}_masks.pkl"
-                annot_filepath = self.annot_path / f"{obs_id}_annotations.npy"
+            for obs_id_object, images_path in self.obsId_to_folder_map.items():
+                masks_filepath = find_masks(self.masks_path, obs_id_object)
+                annot_filepath = find_annot(self.annot_path, obs_id_object)
 
-                obsId_error_frames = self.load_error_frames(obs_id)
-
-                export_root_path = DATA_ROOT_PATH / "exports" / obs_id
-                export_root_path.mkdir(parents=True, exist_ok=True)
+                obs_id_str = obs_id_object.to_str()
+                obsId_error_frames = self.load_error_frames(obs_id_str)
 
                 process = mp.Process(
-                    name=obs_id,
+                    name=obs_id_str,
                     target=self.run_process,
                     args=(
-                        obs_id,
+                        obs_id_str,
                         images_path,
                         masks_filepath,
                         annot_filepath,
                         obsId_error_frames,
-                        export_root_path,
+                        export_root_path / obs_id_str,
                     ),
                     kwargs=({}),
                 )
@@ -80,25 +176,25 @@ class MultiBuilder:
                 self.processes.append(process)
                 process.start()
 
-                # Wait for completion and update tqdm as each process finishes
-                completed = set()
-                while len(completed) < total_jobs:
-                    for p in self.processes:
-                        if p not in completed and not p.is_alive():
-                            completed.add(p)
-                            pbar.update(1)
-                    time.sleep(1)
-                pbar.close()
-
-                # Wait for all processes to complete
+            # Wait for completion and update tqdm as each process finishes
+            completed = set()
+            while len(completed) < total_jobs:
                 for p in self.processes:
-                    p.join()
+                    if p not in completed and not p.is_alive():
+                        completed.add(p)
+                        pbar.update(1)
+                time.sleep(1)
+            pbar.close()
 
-                # Check for failed processes
-                for p in self.processes:
-                    if p.exitcode != 0:
-                        # TODO: use logging
-                        print(f"{p.name} failed with exit code {p.exitcode}")
+            # Wait for all processes to complete
+            for p in self.processes:
+                p.join()
+
+            # Check for failed processes
+            for p in self.processes:
+                if p.exitcode != 0:
+                    # TODO: use logging
+                    print(f"{p.name} failed with exit code {p.exitcode}")
 
         except Exception as e:
             print("Exception", str(e))
@@ -140,21 +236,21 @@ class MultiBuilder:
             ]
 
             # TODO: make all these configuration parameters
-            # TODO: Move from config.py to config.yaml
             builder = DatumaroDatasetBuilder(
                 obs_id=obs_id,
                 masks=masks,
                 error_frames=obsId_error_frames,
                 chunked_df=chunked_df,
                 label_categories=label_categories,
+                images_path=images_path,
+                export_root_path=export_root_path,
                 classifier=classifier,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
                 classifier_conf=0.25,
                 target_class="correct_fish_mask",
                 start_frame=0,
-                max_frames=None,
-                images_path=images_path,
+                max_frames=10,
                 filename_num_zeros=config.number_of_zeros,
                 verbose=False,
                 notebook_debug=False,
@@ -188,16 +284,11 @@ class MultiBuilder:
 
 
 if __name__ == "__main__":
-    # # On Windows, spawn is required for safety with CUDA/torch
-    # try:
-    #     mp.set_start_method("spawn", force=True)
-    # except RuntimeError:
-    #     pass
-
     mb = MultiBuilder(
         Config.errors_csv_filepath,
         Config.obsId_to_folder_map,
         Config.masks_path,
         Config.annot_path,
     )
-    mb.build_all()
+    mb.verify_existence()
+    mb.build_all(export_root_path=DATA_ROOT_PATH / "exports")

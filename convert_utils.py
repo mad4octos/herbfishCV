@@ -151,10 +151,10 @@ def load_categories(
     return {AnnotationType.label: label_categories}
 
 
-def load_errors_df(filepath: Path, video_id: str):
+def load_errors_df(filepath: Path, observation_id: str):
     """ """
     errors_df = pd.read_csv(filepath)
-    video_errors_df = errors_df[errors_df.obsID == video_id]
+    video_errors_df = errors_df[errors_df.obsID == observation_id]
     video_errors_df = video_errors_df.astype(
         {"mistaken_frame_start": "int32", "mistaken_frame_end": "int32"}
     )

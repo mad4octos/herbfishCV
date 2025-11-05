@@ -1,6 +1,115 @@
 from pathlib import Path
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
 
-DATA_ROOT_PATH = Path(<<FILL_ME>>)
+
+# Naming convention for the ObservationID of stationary data.
+#
+# - On the SAM2_Errors, this is specified as:
+#     <monopod>_<date-recorded>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>
+#
+# - For the masks and results videos, this is specified as:
+#     <observer>_<date>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>_<colorcorrection>
+#
+#   NOTE: I've seen variations for the Observation ID on the masks files, like:
+#     <observer>_monopod_<date><...>
+#     <videoname>
+#     <videoname>_synced
+#
+# - Date recorded may be in the format of MM-DD-YYYY or MMDDYY
+#
+# - If no color correction was used, it will be blank in the observationID for the masks/results.
+#
+# For some videos, color correction methods (LACC or retinex) was used on the frames.
+# For the SAM2_Errors.csv, that will be specified in the Enhancement column of the SAM2 errors. If a color
+# correction was used, the corresponding folder of frames will be video_name_LACC or video_name_ret
+#
+# Examples:
+# JGL_monopod_05302024_site5_east_B_Right_GX030843_masks.pkl
+# JGL_monopod_05302024_site5_east_B_Right_GX030843_annotations.npy
+
+DATA_ROOT_PATH = Path(FILL_ME)
+
+
+@dataclass(frozen=True)
+class ParsedObservationID:
+    """
+    - observer:
+    - date: MM-DD-YYYY format
+    - site: e.g. "site5"
+    - direction: "east"/"west"/"north"/"south"
+    - ab: "A" or "B"
+    - side: "Left" or "Right"
+    - videoname: e.g. "GX030843"
+    """
+
+    observer: str
+    date: str
+    site: str
+    direction: str
+    ab: str
+    side: str
+    videoname: str
+
+    accepted_date_format = "%m-%d-%Y"
+
+    def __post_init__(self):
+        """ """
+
+        # Validate date format
+        try:
+            datetime.strptime(self.date, self.accepted_date_format)
+        except ValueError:
+            raise ValueError(
+                f"Invalid date format for {self.date!r}. Expected MM-DD-YYYY."
+            )
+
+        # Validate A/B values
+        if self.ab.lower() not in {"a", "b"}:
+            raise ValueError(
+                f"Invalid value for ab: {self.ab!r}. Must be 'a' or 'b' (case-insensitive)."
+            )
+
+        # Validate direction
+        if self.direction.lower() not in {"east", "west", "north", "south"}:
+            raise ValueError(
+                f"Invalid direction: {self.direction!r}. Must be 'east', 'west', 'north' or 'south' (case-insensitive)."
+            )
+
+        # Validate side
+        if self.side.lower() not in {"left", "right"}:
+            raise ValueError(
+                f"Invalid side: {self.direction!r}. Must be 'left' or 'right' (case-insensitive)."
+            )
+
+    def to_str(
+        self,
+        has_observer=True,
+        has_monopod_token=False,
+        output_date_format: Literal["%m%d%Y", "%m-%d-%Y", "%m%d%y"] = "%m-%d-%Y",
+    ) -> str:
+        """
+        Reconstruct the 'masks/results' style ID:
+        <observer>_<date>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>_<colorcorrection?>
+        (date uses YYYYMMDD if we can; otherwise date_raw)
+        """
+        parts = []
+        if has_observer:
+            parts.append(self.observer)
+        if has_monopod_token:
+            parts.append("monopod")
+        parts.append(
+            datetime.strptime(self.date, self.accepted_date_format).strftime(
+                output_date_format
+            )
+        )
+        parts.append(self.site)
+        parts.append(self.direction.lower())
+        parts.append(self.ab.upper())
+        parts.append(self.side.capitalize())
+        parts.append(self.videoname.upper())
+        return "_".join(parts)
 
 
 class Config:
@@ -11,10 +120,12 @@ class Config:
     errors_csv_filepath = DATA_ROOT_PATH / "SAM2_errors.csv"
 
     # Path towards directory containing all the annotation files
-    annot_path = Path(<<FILL_ME>>)
+    annot_path = DATA_ROOT_PATH / "location_annotations"
 
     # Path towards directory containing all the masks files
-    masks_path = Path(<<FILL_ME>>)
+    masks_path = DATA_ROOT_PATH / "SAM2_masks"
+
+    output_path = ""
 
     # Minimum bounding box area (in pixels) required for a blob to be considered valid.
     # Blobs with a smaller area are ignored as likely noise or irrelevant detections.
@@ -27,37 +138,23 @@ class Config:
     # Use 4 for focal follow data, 5 for stationary data.
     number_of_zeros = 5
 
-    # # Stationary files
-    # RIGHT GX050100
-    # data_path = DATA_ROOT_PATH / "stationary" / "GX050100"
-    # annotations_filepath = (DATA_ROOT_PATH / "stationary" / "MLM_051524_site3_east_A_Right_GX050100_annotations.npy")
-    # masks_filepath = (DATA_ROOT_PATH / "stationary" / "MLM_051524_site3_east_A_Right_GX050100_masks.pkl")
-
-    # LEFT GX056267_frames
-    data_path = DATA_ROOT_PATH / "stationary" / "GX056267_frames2"
-    annotations_filepath = (
-        DATA_ROOT_PATH
-        / "stationary"
-        / "MLM_051524_site3_east_B_Left_GX056267_annotations.npy"
-    )
-    masks_filepath = (
-        DATA_ROOT_PATH
-        / "stationary"
-        / "MLM_051524_site3_east_B_Left_GX056267_masks.pkl"
-    )
-
-    # Focal follow files
-    # data_path = ROOT_PATH / "focal_follow" / "MH_SR_062523_6_L"
-    # annotations_filepath = (ROOT_PATH / "focal_follow" / "MH_SR_062523_6_L_annotations.npy")
-    # masks_filepath = ROOT_PATH / "focal_follow" / "MH_SR_062523_6_L_masks.pkl"
-
-    # NOTE:
-    # The files *_masks.pkl and *_annotations.npy must match the keys.
-    # For example:
-    #   - ABC123_masks.pkl and ABC123_annotations.npy
-    #   - DEF456_masks.pkl and DEF456_annotations.npy
-    obsId_to_folder_map: dict[str, Path] = {
-        "MLM_051524_site3_east_B_Left_GX056267": DATA_ROOT_PATH
-        / "stationary"
-        / "GX056267_frames2",
+    obsId_to_folder_map: dict[ParsedObservationID, Path] = {
+        ParsedObservationID(
+            observer="JGL",
+            date="05-30-2024",
+            site="site5",
+            direction="east",
+            ab="B",
+            side="Right",
+            videoname="GX030843",
+        ): DATA_ROOT_PATH / "GX030843_frames",
+        ParsedObservationID(
+            observer="MLM",
+            date="05-15-2024",
+            site="site3",
+            direction="east",
+            ab="B",
+            side="Left",
+            videoname="GX056267",
+        ): Path(r"F:\DATASETS\GIL LAB\Example SAM2\stationary") / "GX056267_frames2",
     }
