@@ -63,6 +63,7 @@ class DatumaroDatasetBuilder:
         self.chunked_df = chunked_df
         self.label_categories = label_categories
         self.images_path = Path(images_path)
+        self.export_root_path = export_root_path
         self.col_class_name = col_class_name
         self.col_instance_id = col_instance_id
         self.filename_num_zeros = filename_num_zeros
@@ -122,7 +123,7 @@ class DatumaroDatasetBuilder:
             logger.addHandler(console_handler)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = f"{self.obs_id}_{timestamp}.log"
+        log_file = self.export_root_path / f"{self.obs_id}-exported-on-{timestamp}.log"
 
         # File handler
         file_handler = FileHandler(filename=log_file, encoding="utf-8")

@@ -69,10 +69,10 @@ class FishTracker:
         for anomaly_check in self.anomaly_rules:
             if (anomaly := anomaly_check(self)) is not None:
                 # Remove the latest metric, because it was anomalous.
-                del self.metrics[-1]
+                # del self.metrics[-1]
 
                 results["anomalies"].append(anomaly)
-                self.logger.info(anomaly_check.explain(anomaly))
+                self.logger.warning(anomaly_check.explain(anomaly))
 
             elif anomaly is None:
                 # No anomaly found... but that doesn't guarantee there are no anomalies in this blob.

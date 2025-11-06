@@ -235,3 +235,12 @@ def _get_frame_filename(
 def exp_smooth(measurement: float, prev_value: float, beta: float = 0.8) -> float:
     """ """
     return beta * measurement + (1.0 - beta) * prev_value
+
+
+def detrend_by_differencing(X):
+    """Detrend a timeseries by differencing"""
+    diff = list()
+    for i in range(1, len(X)):
+        value = X[i] - X[i - 1]
+        diff.append(value)
+    return diff

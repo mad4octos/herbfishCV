@@ -1,10 +1,12 @@
 # Standard Library imports
 from dataclasses import dataclass
-from math import hypot
 from typing import Optional, TypedDict, Protocol
 
 # External imports
 import numpy as np
+
+# Local imports
+from convert_utils import detrend_by_differencing
 
 # TODO
 # There seem to be two kind of anomalies
@@ -59,36 +61,6 @@ class FishAnomalyRule(Protocol):
 
 
 @dataclass
-class AreaChangeAnomaly:
-    """
-    Check for sudden area changes in the fish mask.
-    """
-
-    area_change_thresh: float = 0.5
-
-    def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
-        """Calculate percentage change in area between the last two frames"""
-
-        if not check_observations_continuity(tr):
-            return
-
-        prev_area = tr.metrics[-2].area
-        curr_area = tr.metrics[-1].area
-
-        if prev_area > 0:
-            area_change = (curr_area - prev_area) / prev_area
-        else:
-            area_change = 0
-
-        if abs(area_change) > self.area_change_thresh:
-            return {"type": "area_spike", "value": round(area_change, 2)}
-
-    def explain(self, anomaly: AnomalyDict) -> str:
-        percent_change = anomaly["value"]
-        return f"Area changed by {percent_change:.1%} (threshold: {self.area_change_thresh:.1%})"
-
-
-@dataclass
 class LargeDisplacementAnomaly:
     """Check for sudden large movements in fish centroid position"""
 
@@ -118,89 +90,69 @@ class LargeDisplacementAnomaly:
 
 
 @dataclass
-class SolidityChangeAnomaly:
+class ZScoreAnomaly:
     """
-    Flags sudden frame-to-frame jumps in solidity (area / convex hull area).
-    Useful to catch merged masks, broken masks, or sharp shape irregularities.
+    This class is used to track properties of a blob, assuming they are normally distributed, and rejecting observations
+    when they fall out of certain number of standard deviations.
 
-    delta_thresh:
-        Relative change threshold. E.g., 0.5 means > ±50% change triggers.
     """
 
-    delta_thresh: float = 0.5  # > ±50% jump
-
-    def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
-        if not check_observations_continuity(tr):
-            return
-
-        s_curr = tr.metrics[-1].solidity
-        s_prev = tr.metrics[-2].solidity
-
-        delta = (s_curr - s_prev) / s_prev
-        if abs(delta) > self.delta_thresh:
-            return {"type": "solidity_spike", "value": round(delta, 2)}
-
-        return None
-
-    def explain(self, anomaly: AnomalyDict) -> str:
-        change = anomaly["value"]
-        return (
-            f"Solidity changed by {change:+.1%} (threshold: {self.delta_thresh:.0%})."
-        )
-
-
-@dataclass
-class CompactnessChangeAnomaly:
-    """
-    Flags sudden frame-to-frame jumps in solidity (area / convex hull area).
-    Useful to catch merged masks, broken masks, or sharp shape irregularities.
-
-    delta_thresh:
-        Relative change threshold. E.g., 0.5 means > ±50% change triggers.
-    """
-
-    delta_thresh: float = 0.7
-
-    def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
-        if not check_observations_continuity(tr):
-            return
-
-        s_curr = tr.metrics[-1].compactness
-        s_prev = tr.metrics[-2].compactness
-
-        delta = (s_curr - s_prev) / s_prev
-        if abs(delta) > self.delta_thresh:
-            return {"type": "compactness_spike", "value": round(delta, 2)}
-
-        return None
-
-    def explain(self, anomaly: AnomalyDict) -> str:
-        change = anomaly["value"]
-        return f"Compactness changed by {change:+.1%} (threshold: {self.delta_thresh:.0%})."
-
-
-@dataclass
-class AreaZScoreAnomaly:
-    """Area outlier vs rolling window (robust to gradual drift)."""
-
+    metric_name: str
     window: int = 6
     z_thresh: float = 3.5
+    detrend = True
 
     def __call__(self, tr: "FishTracker"):
+        """ """
+
         if len(tr.metrics) < self.window:
             return
 
-        xs = [tr.metrics[i].area for i in range(-self.window, -1)]
-        mu = float(np.mean(xs))
-        sd = float(np.std(xs))
-        self.mu = mu
-        self.sd = sd
-        z = (tr.metrics[-1].area - mu) / sd
+        xs = [getattr(tr.metrics[i], self.metric_name) for i in range(-self.window, 0)]
+        if self.detrend:
+            xs = detrend_by_differencing(xs)
+
+        self.mu = float(np.mean(xs[:-1]))
+        self.sd = float(np.std(xs[:-1]))
+        last_metric = xs[-1]
+        z = (last_metric - self.mu) / self.sd
 
         if z > self.z_thresh:
-            return {"type": "area_zscore", "value": round(z, 2)}
+            return {"type": f"{self.metric_name}_zscore", "value": round(z, 2)}
 
     def explain(self, anomaly: AnomalyDict) -> str:
         z_score = anomaly["value"]
         direction = "larger" if z_score > 0 else "smaller"
-        return f"Fish area is {direction} than expected (z-score: {z_score:.2f}, threshold: {self.z_thresh}), mu: {self.mu}, sd: {self.sd}"
+        return f"Fish {self.metric_name} is {direction} than expected (z-score: {z_score:.2f}, threshold: {self.z_thresh:.2f}), mu: {self.mu:.2f}, sd: {self.sd:.2f}"
+
+
+@dataclass
+class SpikeAnomaly:
+    """
+    Check for sudden changes in the fish mask.
+    """
+
+    metric_name: str
+    change_thresh: float = 0.5
+
+    def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
+        """Calculate percentage change in a metric between the last two frames"""
+
+        if not check_observations_continuity(tr):
+            return
+
+        prev = getattr(tr.metrics[-2], self.metric_name)
+        curr = getattr(tr.metrics[-1], self.metric_name)
+
+        if prev > 0:
+            change = (curr - prev) / prev
+        else:
+            change = 0
+
+        if abs(change) > self.change_thresh:
+            return {"type": f"{self.metric_name}_spike", "value": round(change, 2)}
+
+    def explain(self, anomaly: AnomalyDict) -> str:
+        percent_change = anomaly["value"]
+        return f"{self.metric_name} changed by {percent_change:.1%} (threshold: {self.change_thresh:.1%})"
+

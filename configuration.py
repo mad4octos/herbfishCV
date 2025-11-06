@@ -1,8 +1,8 @@
-from pathlib import Path
+# Standard Library imports
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
-
 
 # Naming convention for the ObservationID of stationary data.
 #
@@ -125,7 +125,7 @@ class Config:
     # Path towards directory containing all the masks files
     masks_path = DATA_ROOT_PATH / "SAM2_masks"
 
-    output_path = ""
+    output_path = DATA_ROOT_PATH / "exports"
 
     # Minimum bounding box area (in pixels) required for a blob to be considered valid.
     # Blobs with a smaller area are ignored as likely noise or irrelevant detections.
@@ -147,7 +147,7 @@ class Config:
             ab="B",
             side="Right",
             videoname="GX030843",
-        ): DATA_ROOT_PATH / "GX030843_frames",
+        ): DATA_ROOT_PATH / "frames" / "GX030843_frames",
         ParsedObservationID(
             observer="MLM",
             date="05-15-2024",
