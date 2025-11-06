@@ -4,9 +4,7 @@ from typing import Optional, TypedDict, Protocol
 
 # External imports
 import numpy as np
-
-# Local imports
-from convert_utils import detrend_by_differencing
+import pandas as pd
 
 # TODO
 # There seem to be two kind of anomalies
@@ -101,6 +99,7 @@ class ZScoreAnomaly:
     window: int = 6
     z_thresh: float = 3.5
     detrend = True
+    smooth = True
 
     def __call__(self, tr: "FishTracker"):
         """ """
@@ -110,7 +109,9 @@ class ZScoreAnomaly:
 
         xs = [getattr(tr.metrics[i], self.metric_name) for i in range(-self.window, 0)]
         if self.detrend:
-            xs = detrend_by_differencing(xs)
+            xs = np.diff(xs)
+        if self.smooth:
+            xs = pd.Series(xs).ewm(span=self.window).mean().to_numpy()
 
         self.mu = float(np.mean(xs[:-1]))
         self.sd = float(np.std(xs[:-1]))

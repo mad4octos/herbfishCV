@@ -7,6 +7,7 @@ from typing import Optional
 # External imports
 from ultralytics import YOLO
 from tqdm import tqdm
+import pandas as pd
 
 # Local imports
 from convert_utils import (
@@ -19,15 +20,12 @@ from convert_utils import (
 )
 from blob_filter_rules import MinAreaRule, MinSizeRule
 from anomaly_rules import (
-    AreaChangeAnomaly,
     LargeDisplacementAnomaly,
-    AreaZScoreAnomaly,
-    CompactnessChangeAnomaly,
-    SolidityChangeAnomaly,
+    ZScoreAnomaly,
+    SpikeAnomaly,
 )
-from configuration import Config, DATA_ROOT_PATH, ParsedObservationID
+from configuration import Config, ParsedObservationID
 from dataset_builder import DatumaroDatasetBuilder
-import pandas as pd
 
 
 def find_obsId_in_errors_file(
@@ -107,7 +105,6 @@ class MultiBuilder:
         Verify the existence of masks (.pkl), annotations (.npy) files, the images folder and the observation in the
         errors file.
         """
-        # TODO: Also log to a file!
 
         for obs_id_object, images_path in self.obsId_to_folder_map.items():
             print(f"* Checking existence of assets for video {obs_id_object.videoname}")
@@ -142,10 +139,11 @@ class MultiBuilder:
             exists_in_errors = find_obsId_in_errors_file(obs_id_object, errors_df)
             if not exists_in_errors:
                 print(" - [WARNING] Couldn't find observation id in errors file!")
+                # TODO: show closely related matches to the user.
             else:
                 print(" - Found observation id in errors file")
 
-    def build_all(self, export_root_path: Path):
+    def build_all(self, output_path: Path):
         """ """
 
         total_jobs = len(self.obsId_to_folder_map)
@@ -168,7 +166,7 @@ class MultiBuilder:
                         masks_filepath,
                         annot_filepath,
                         obsId_error_frames,
-                        export_root_path / obs_id_str,
+                        output_path / obs_id_str,
                     ),
                     kwargs=({}),
                 )
@@ -228,11 +226,11 @@ class MultiBuilder:
 
             # Anomalies across time in blob properties will be detected using these rules
             anomaly_rules = [
-                AreaChangeAnomaly(),
+                SpikeAnomaly("area", change_thresh=1.0),
+                SpikeAnomaly("solidity"),
+                SpikeAnomaly("compactness"),
                 LargeDisplacementAnomaly(),
-                SolidityChangeAnomaly(),
-                AreaZScoreAnomaly(),
-                CompactnessChangeAnomaly(),
+                ZScoreAnomaly("area"),
             ]
 
             # TODO: make all these configuration parameters
@@ -250,7 +248,7 @@ class MultiBuilder:
                 classifier_conf=0.25,
                 target_class="correct_fish_mask",
                 start_frame=0,
-                max_frames=10,
+                max_frames=None,
                 filename_num_zeros=config.number_of_zeros,
                 verbose=False,
                 notebook_debug=False,
@@ -291,4 +289,4 @@ if __name__ == "__main__":
         Config.annot_path,
     )
     mb.verify_existence()
-    mb.build_all(export_root_path=DATA_ROOT_PATH / "exports")
+    mb.build_all(output_path=Config.output_path)
