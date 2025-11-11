@@ -22,6 +22,7 @@ from anomaly_rules import (
     LargeDisplacementAnomaly,
     ZScoreAnomaly,
     SpikeAnomaly,
+    AbsoluteThresholdAnomaly,
 )
 from configuration import Config, ParsedObservationID
 from dataset_builder import DatumaroDatasetBuilder
@@ -200,6 +201,7 @@ class MultiBuilder:
                 SpikeAnomaly("area", change_thresh=1.0),
                 SpikeAnomaly("solidity"),
                 SpikeAnomaly("compactness"),
+                AbsoluteThresholdAnomaly("area", max_val=250000),
                 LargeDisplacementAnomaly(),
                 ZScoreAnomaly("area"),
             ]

@@ -62,9 +62,6 @@ class FishTracker:
             "anomalies": [],
         }
 
-        if len(self.metrics) < 2:
-            return results
-
         self.log_metrics()
         for anomaly_check in self.anomaly_rules:
             if (anomaly := anomaly_check(self)) is not None:

@@ -157,3 +157,38 @@ class SpikeAnomaly:
         percent_change = anomaly["value"]
         return f"{self.metric_name} changed by {percent_change:.1%} (threshold: {self.change_thresh:.1%})"
 
+
+@dataclass
+class AbsoluteThresholdAnomaly:
+    """
+    Flags if the latest value of `metric_name` violates fixed bounds.
+    No dependence on past values.
+    """
+
+    metric_name: str
+    max_val: Optional[float] = None
+
+    def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
+        if not tr.metrics:
+            return
+
+        latest_metric_val = float(getattr(tr.metrics[-1], self.metric_name))
+
+        high_violation = self.max_val is not None and (latest_metric_val > self.max_val)
+
+        if high_violation:
+            return {
+                "type": f"{self.metric_name}_abs_threshold",
+                "value": round(float(latest_metric_val), 2),
+            }
+
+    def explain(self, anomaly: AnomalyDict) -> str:
+        anom_value = anomaly["value"]
+
+        direction = ""
+        if self.max_val is not None and (anom_value > self.max_val):
+            direction = "above max"
+        return (
+            f"Absolute threshold violation: {self.metric_name}={anom_value:.2f} is {direction} "
+            f"max>'{self.max_val}"
+        )
