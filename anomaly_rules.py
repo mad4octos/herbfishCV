@@ -135,11 +135,16 @@ class SpikeAnomaly:
 
     metric_name: str
     change_thresh: float = 0.5
+    window = 3
 
     def __call__(self, tr: "FishTracker") -> Optional[AnomalyDict]:
         """Calculate percentage change in a metric between the last two frames"""
 
-        if not check_observations_continuity(tr):
+        # Wait to have at least 3 observations, so that objects appearing don't trigger a detection
+        if len(tr.metrics) < self.window:
+            return
+
+        if not check_observations_continuity(tr, n=2):
             return
 
         prev = getattr(tr.metrics[-2], self.metric_name)
