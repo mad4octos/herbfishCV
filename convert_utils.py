@@ -10,6 +10,8 @@ from datumaro.components.annotation import AnnotationType, LabelCategories
 import numpy as np
 import pandas as pd
 import torch
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.stattools import kpss
 
 # Local imports
 from blob import BlobInfo
@@ -232,15 +234,39 @@ def _get_frame_filename(
     return f"{extracted_frame_idx + 1:0{filename_num_zeros}d}{extension}"
 
 
-def exp_smooth(measurement: float, prev_value: float, beta: float = 0.8) -> float:
-    """ """
-    return beta * measurement + (1.0 - beta) * prev_value
+def kpss_test(timeseries, significance_level=0.05):
+    """
+    Modified from:
+    https://www.statsmodels.org/dev/examples/notebooks/generated/stationarity_detrending_adf_kpss.html
+    """
+    kpsstest = kpss(timeseries, regression="c", nlags="auto")
+    kpss_output = pd.Series(
+        kpsstest[0:3], index=["Test Statistic", "p-value", "Lags Used"]
+    )
+
+    if kpss_output["p-value"] < significance_level:
+        return "non-stationary"
+    else:
+        return "stationary"
 
 
-def detrend_by_differencing(X):
-    """Detrend a timeseries by differencing"""
-    diff = list()
-    for i in range(1, len(X)):
-        value = X[i] - X[i - 1]
-        diff.append(value)
-    return diff
+def adf_test(timeseries, significance_level=0.05):
+    """
+    Modified from:
+    https://www.statsmodels.org/dev/examples/notebooks/generated/stationarity_detrending_adf_kpss.html
+    """
+    dftest = adfuller(timeseries, autolag="AIC")
+    dfoutput = pd.Series(
+        dftest[0:4],
+        index=[
+            "Test Statistic",
+            "p-value",
+            "#Lags Used",
+            "Number of Observations Used",
+        ],
+    )
+
+    if dfoutput["p-value"] > significance_level:
+        return "non-stationary"
+    else:
+        return "stationary"

@@ -6,12 +6,7 @@ from typing import Optional, TypedDict, Protocol
 import numpy as np
 import pandas as pd
 
-# TODO
-# There seem to be two kind of anomalies
-# - threshold spikes
-# - ZScore spikes
-# Allow the property of interest to be a parameter.
-# This requires all the properties to be calculated beforehand, for example, speed.
+from convert_utils import adf_test, kpss_test
 
 
 def check_observations_continuity(tr: "FishTracker", n: int = 2):
@@ -98,8 +93,15 @@ class ZScoreAnomaly:
     metric_name: str
     window: int = 6
     z_thresh: float = 3.5
+
+    # Exponentially weighted mean smoothing factor
+    smooth: Optional[float] = 0.5
+
+    # Remove time series trend conditioned on it being identified as non-stationary
     detrend = True
-    smooth = True
+
+    # Max number of differencing rounds when detrending
+    differencing_rounds = 2
 
     def __call__(self, tr: "FishTracker"):
         """ """
@@ -109,9 +111,17 @@ class ZScoreAnomaly:
 
         xs = [getattr(tr.metrics[i], self.metric_name) for i in range(-self.window, 0)]
         if self.detrend:
-            xs = np.diff(xs)
-        if self.smooth:
-            xs = pd.Series(xs).ewm(span=self.window).mean().to_numpy()
+            # Perform stationarity tests (ADF and KPSS)
+            for _ in range(self.differencing_rounds):
+                adf_stationary = adf_test(xs) == "stationary"
+                kpss_stationary = kpss_test(xs) == "stationary"
+
+                if adf_stationary and kpss_stationary:
+                    break  # Time series is stationary
+                xs = np.diff(xs)
+
+        if self.smooth is not None:
+            xs = pd.Series(xs).ewm(alpha=self.smooth).mean().to_numpy()
 
         self.mu = float(np.mean(xs[:-1]))
         self.sd = float(np.std(xs[:-1]))
@@ -124,7 +134,10 @@ class ZScoreAnomaly:
     def explain(self, anomaly: AnomalyDict) -> str:
         z_score = anomaly["value"]
         direction = "larger" if z_score > 0 else "smaller"
-        return f"Fish {self.metric_name} is {direction} than expected (z-score: {z_score:.2f}, threshold: {self.z_thresh:.2f}), mu: {self.mu:.2f}, sd: {self.sd:.2f}"
+        return (
+            f"ZScore anomaly(window={self.window}, detrend={self.detrend}, smooth={self.smooth}): "
+            f"Fish {self.metric_name} is {direction} than expected (z-score: {z_score:.2f}, threshold: {self.z_thresh:.2f}), mu: {self.mu:.2f}, sd: {self.sd:.2f}"
+        )
 
 
 @dataclass
