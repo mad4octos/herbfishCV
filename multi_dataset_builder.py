@@ -216,13 +216,14 @@ class MultiBuilder:
                 classifier=classifier,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
-                classifier_conf=0.25,
+                classifier_conf=config.classifier_conf,
                 target_class="correct_fish_mask",
-                start_frame=0,
-                max_frames=None,
+                start_frame=config.start_frame,
+                max_frames=config.max_frames,
                 filename_num_zeros=config.number_of_zeros,
                 verbose=False,
                 notebook_debug=False,
+                window_size=config.window_size,
             )
             dataset = builder.build()
 

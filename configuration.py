@@ -138,6 +138,18 @@ class Config:
     # Use 4 for focal follow data, 5 for stationary data.
     number_of_zeros = 5
 
+    # Video frame from where to start the extraction
+    start_frame: int = 0
+
+    # Number of frames to extract from each video
+    max_frames: int | None = None
+
+    # Length of the Fish Tracker window tracking blob metrics
+    window_size: int = 10
+
+    # Masked fish crop classifier confidence threshold
+    classifier_conf: float = 0.25
+
     obsId_to_folder_map: dict[ParsedObservationID, Path] = {
         ParsedObservationID(
             observer="JGL",

@@ -45,6 +45,7 @@ class DatumaroDatasetBuilder:
         export_root_path: Path,
         classifier,
         blob_rules: Iterable[BlobRule],
+        window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
         classifier_conf: float = 0.5,
         col_class_name: str = "ObjType",
@@ -88,7 +89,7 @@ class DatumaroDatasetBuilder:
         self.anomaly_rules = anomaly_rules
         self.setup_logging(log_to_console=verbose)
         self.tracker_manager = FishTrackerManager(
-            self.anomaly_rules, logger=self.logger
+            self.anomaly_rules, logger=self.logger, window_size=window_size
         )
 
     def setup_logging(self, log_to_console=True, level: int = logging.INFO):
