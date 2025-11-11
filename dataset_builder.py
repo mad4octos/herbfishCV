@@ -58,6 +58,7 @@ class DatumaroDatasetBuilder:
         notebook_debug=False,
     ):
         """ """
+        self.start_time = datetime.now()
         self.obs_id = obs_id
         self.masks = masks
         self.error_frames = error_frames
@@ -72,7 +73,10 @@ class DatumaroDatasetBuilder:
         self.classifier = classifier
         self.classifier_conf = classifier_conf
         self.video_writer = cv2.VideoWriter(
-            filename=str(export_root_path / f"{obs_id}_debug_output.mp4"),
+            filename=str(
+                export_root_path
+                / f"{obs_id}_debug-exported-on-{self.start_time.strftime('%Y%m%d_%H%M%S')}.mp4"
+            ),
             fourcc=cv2.VideoWriter_fourcc(*"mp4v"),  # *"MPEG", "MJPG", "mp4v", "FMP4"
             fps=2,
             frameSize=(3840, 2160),
@@ -123,7 +127,7 @@ class DatumaroDatasetBuilder:
             console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
         log_file = self.export_root_path / f"{self.obs_id}-exported-on-{timestamp}.log"
 
         # File handler
