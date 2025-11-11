@@ -18,11 +18,7 @@ class AnomaliesResultsDict(TypedDict):
 
 class FishTracker:
     def __init__(
-        self,
-        obj_id,
-        anomaly_rules: Iterable[FishAnomalyRule],
-        logger,
-        window_size=10,
+        self, obj_id, anomaly_rules: Iterable[FishAnomalyRule], logger, window_size=10
     ):
         self.id = obj_id
         self.window_size = window_size
