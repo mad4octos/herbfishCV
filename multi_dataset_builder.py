@@ -1,7 +1,6 @@
 # Standard Library imports
 from pathlib import Path
 import multiprocessing as mp
-import time
 from typing import Optional
 
 # External imports
@@ -157,42 +156,14 @@ class MultiBuilder:
                 obs_id_str = obs_id_object.to_str()
                 obsId_error_frames = self.load_error_frames(obs_id_str)
 
-                process = mp.Process(
-                    name=obs_id_str,
-                    target=self.run_process,
-                    args=(
-                        obs_id_str,
-                        images_path,
-                        masks_filepath,
-                        annot_filepath,
-                        obsId_error_frames,
-                        output_path / obs_id_str,
-                    ),
-                    kwargs=({}),
+                self.run_process(
+                    obs_id_str,
+                    images_path,
+                    masks_filepath,
+                    annot_filepath,
+                    obsId_error_frames,
+                    output_path / obs_id_str,
                 )
-
-                self.processes.append(process)
-                process.start()
-
-            # Wait for completion and update tqdm as each process finishes
-            completed = set()
-            while len(completed) < total_jobs:
-                for p in self.processes:
-                    if p not in completed and not p.is_alive():
-                        completed.add(p)
-                        pbar.update(1)
-                time.sleep(1)
-            pbar.close()
-
-            # Wait for all processes to complete
-            for p in self.processes:
-                p.join()
-
-            # Check for failed processes
-            for p in self.processes:
-                if p.exitcode != 0:
-                    # TODO: use logging
-                    print(f"{p.name} failed with exit code {p.exitcode}")
 
         except Exception as e:
             print("Exception", str(e))
