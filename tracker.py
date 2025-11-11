@@ -81,6 +81,17 @@ class FishTracker:
 
     def update(self, blob: BlobInfo):
         """ """
+
+        # Filter out old blobs
+        current_frame_idx = blob.frame_idx
+        filtered: deque[BlobInfo] = deque(maxlen=self.window_size)
+        for b in self.metrics:
+            if b.frame_idx < (current_frame_idx - self.window_size):
+                print(f"Removing old blob {b}")
+            else:
+                filtered.append(b)
+        self.metrics = filtered
+
         self.cycles_since_update = 0
         # Create a copy with labeled_mask set to None to save memory
         metrics_blob = replace(blob, labeled_mask=None)
