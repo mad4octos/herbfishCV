@@ -173,7 +173,7 @@ class SpikeAnomaly:
 
     def explain(self, anomaly: AnomalyDict) -> str:
         percent_change = anomaly["value"]
-        return f"{self.metric_name} changed by {percent_change:.1%} (threshold: {self.change_thresh:.1%})"
+        return f"Spike anomaly: {self.metric_name} changed by {percent_change:.1%} (threshold: {self.change_thresh:.1%})"
 
 
 @dataclass
