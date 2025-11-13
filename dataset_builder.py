@@ -116,6 +116,8 @@ class DatumaroDatasetBuilder:
         level : int
             Logging level. Defaults to logging.INFO
         """
+        # Create export dir if doesn't exist
+        self.export_root_path.mkdir(parents=True, exist_ok=True)
 
         logger = logging.getLogger(self.__class__.__name__)
         logger.setLevel(level)
