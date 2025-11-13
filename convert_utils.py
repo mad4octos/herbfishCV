@@ -98,8 +98,16 @@ def get_frame_chunks_df(
             enter_frame[instance_id].values, exit_frame[instance_id].values
         )
     ):
+        print(
+            f"enter_frame: {enter_frame.shape}, {enter_frame[instance_id].values}\n",
+            enter_frame,
+        )
+        print(
+            f"exit_frame: {exit_frame.shape}, {exit_frame[instance_id].values}\n",
+            exit_frame,
+        )
         raise RuntimeError(
-            f"A {instance_id} does not have both an enter and exit point!"
+            f"An {instance_id} does not have both an enter and exit point!"
         )
 
     # Drop instance_id from exit_frame, now that we have sorted and compared them
