@@ -4,6 +4,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+"""
+Instructions:
+
+- Fill the <FILL_ME> placeholders, one is for the data and one is for the model weights.
+- There are two configuration classes, `Config` and `ClassifierConfig`
+- The anomaly rules are configured using the `anomaly_rules` list of dicts.
+
+
+Note: The class ParsedObservationID is here because it's needed for the configuration and I prefer to keep the 
+configuration file self-contained to avoid potential circular dependencies.
+"""
+
+
 # Naming convention for the ObservationID of stationary data.
 #
 # - On the SAM2_Errors, this is specified as:
