@@ -32,6 +32,14 @@ from typing import Literal
 DATA_ROOT_PATH = Path(FILL_ME)
 
 
+# Constants for default values
+class AnomalyDefaults:
+    SPIKE_CHANGE_THRESHOLD = 2.0
+    DISPLACEMENT_THRESHOLD_PX = 300
+    ZSCORE_WINDOW = 10
+    AREA_MAX_THRESHOLD = 250000
+
+
 @dataclass(frozen=True)
 class ParsedObservationID:
     """
@@ -156,9 +164,45 @@ class Config:
             direction="east",
             ab="B",
             side="Right",
-            videoname="GX030843",
-        ): DATA_ROOT_PATH / "frames" / "GX030843_frames",
     }
+    anomaly_rules = [
+        {
+            "type": "spike",
+            "metric": "area",
+            "threshold": AnomalyDefaults.SPIKE_CHANGE_THRESHOLD,
+            "description": "Detects sudden increases in area",
+        },
+        {
+            "type": "spike",
+            "metric": "solidity",
+            "threshold": AnomalyDefaults.SPIKE_CHANGE_THRESHOLD,
+            "description": "Detects sudden changes in solidity",
+        },
+        {
+            "type": "spike",
+            "metric": "compactness",
+            "threshold": AnomalyDefaults.SPIKE_CHANGE_THRESHOLD,
+            "description": "Detects sudden changes in compactness",
+        },
+        {
+            "type": "absolute",
+            "metric": "area",
+            "max_value": AnomalyDefaults.AREA_MAX_THRESHOLD,
+            "description": "Flags areas exceeding maximum threshold",
+        },
+        {
+            "type": "displacement",
+            "threshold": AnomalyDefaults.DISPLACEMENT_THRESHOLD_PX,
+            "unit": "pixels",
+            "description": "Detects excessive positional displacement",
+        },
+        {
+            "type": "zscore",
+            "metric": "area",
+            "window": AnomalyDefaults.ZSCORE_WINDOW,
+            "description": "Statistical outlier detection using z-score",
+        },
+    ]
 
 
 class ClassifierConfig:

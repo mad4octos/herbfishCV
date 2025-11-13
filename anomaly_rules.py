@@ -210,3 +210,32 @@ class AbsoluteThresholdAnomaly:
             f"Absolute threshold violation: {self.metric_name}={anom_value:.2f} is {direction} "
             f"max>'{self.max_val}"
         )
+
+
+def create_anomaly_rules(config):
+    """Create anomaly detector instances from config list"""
+
+    rules = []
+
+    for rule in config:
+        rule_type = rule["type"]
+
+        if rule_type == "spike":
+            rules.append(
+                SpikeAnomaly(rule["metric"], change_thresh=rule.get("threshold", 2.0))
+            )
+
+        elif rule_type == "absolute":
+            rules.append(
+                AbsoluteThresholdAnomaly(rule["metric"], max_val=rule["max_value"])
+            )
+
+        elif rule_type == "displacement":
+            rules.append(
+                LargeDisplacementAnomaly(displacement_thresh=rule.get("threshold", 300))
+            )
+
+        elif rule_type == "zscore":
+            rules.append(ZScoreAnomaly(rule["metric"], window=rule["window"]))
+
+    return rules

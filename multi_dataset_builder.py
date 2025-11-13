@@ -196,16 +196,8 @@ class MultiBuilder:
             ]
 
             # Anomalies across time in blob properties will be detected using these rules
-            anomaly_rules = [
-                SpikeAnomaly("area", change_thresh=1.0),
-                SpikeAnomaly("solidity"),
-                SpikeAnomaly("compactness"),
-                AbsoluteThresholdAnomaly("area", max_val=250000),
-                LargeDisplacementAnomaly(),
-                ZScoreAnomaly("area"),
-            ]
+            anomaly_rules = create_anomaly_rules(Config.anomaly_rules)
 
-            # TODO: make all these configuration parameters
             builder = DatumaroDatasetBuilder(
                 obs_id=obs_id,
                 masks=masks,
