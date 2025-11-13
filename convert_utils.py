@@ -140,6 +140,11 @@ def load_annotations(annotations_filepath: Path):
     annotations_df = pd.DataFrame(list(annotations))
     annotations_df = annotations_df.sort_values(by=["Frame"]).reset_index(drop=True)
 
+    # Clean trailing whitespaces from all string columns
+    for col in annotations_df.columns:
+        if annotations_df[col].dtype == "object":
+            annotations_df[col] = annotations_df[col].str.strip()
+
     print("Annotations loaded correctly!")
     return annotations_df
 
