@@ -205,7 +205,7 @@ class MultiBuilder:
                 classifier=classifier,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
-                classifier_conf=Config.classifier_conf,
+                classifier_conf=ClassifierConfig.classifier_conf,
                 target_class=["correct_fish_mask"],
                 start_frame=Config.start_frame,
                 max_frames=Config.max_frames,

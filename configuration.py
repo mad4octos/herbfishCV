@@ -219,3 +219,6 @@ class ClassifierConfig:
 
     # Path to classifier weights for detecting correctly masked fish
     model_weights_path = Path(<FILL_ME>)
+
+    # Masked fish crop classifier confidence threshold
+    classifier_conf: float = 0.25
