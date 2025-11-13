@@ -146,6 +146,13 @@ def load_annotations(annotations_filepath: Path):
         annotations = np.load(annotations_file, allow_pickle=True)
 
     annotations_df = pd.DataFrame(list(annotations))
+
+    # Ensure columns have a correct type
+    annotations_df["ObjID"] = annotations_df["ObjID"].astype(str)
+    annotations_df["ObjType"] = annotations_df["ObjType"].astype(str)
+    annotations_df["ClickType"] = annotations_df["ClickType"].astype(int)
+    annotations_df["Frame"] = annotations_df["Frame"].astype(int)
+
     annotations_df = annotations_df.sort_values(by=["Frame"]).reset_index(drop=True)
 
     # Clean trailing whitespaces from all string columns
