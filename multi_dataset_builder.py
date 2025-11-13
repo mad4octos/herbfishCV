@@ -18,12 +18,7 @@ from convert_utils import (
     extract_error_frames,
 )
 from blob_filter_rules import MinAreaRule, MinSizeRule
-from anomaly_rules import (
-    LargeDisplacementAnomaly,
-    ZScoreAnomaly,
-    SpikeAnomaly,
-    AbsoluteThresholdAnomaly,
-)
+from anomaly_rules import create_anomaly_rules
 from configuration import Config, ParsedObservationID, ClassifierConfig
 from dataset_builder import DatumaroDatasetBuilder
 
