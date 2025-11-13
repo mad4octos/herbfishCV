@@ -158,13 +158,16 @@ class Config:
 
     obsId_to_folder_map: dict[ParsedObservationID, Path] = {
         ParsedObservationID(
-            observer="JGL",
-            date="05-30-2024",
-            site="site5",
+            observer="MLM",
+            date="04-27-2024",
+            site="site1",
             direction="east",
             ab="B",
             side="Right",
+            videoname="GX040093",
+        ): DATA_ROOT_PATH / "frames" / "GX040093",
     }
+
     anomaly_rules = [
         {
             "type": "spike",
