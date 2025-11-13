@@ -61,7 +61,9 @@ class FishTracker:
         self.log_metrics()
         for anomaly_check in self.anomaly_rules:
             if (anomaly := anomaly_check(self)) is not None:
-                # Remove the latest metric, because it was anomalous.
+                # I'm unsure whether to keep or remove the latest metric, both options have trade-offs.
+                # If I keep it, the faulty metric skews the baseline and hides future anomalies.
+                # If I remove it, the discontinuity makes some anomaly rules be skipped.
                 # del self.metrics[-1]
 
                 results["anomalies"].append(anomaly)
