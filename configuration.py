@@ -153,9 +153,6 @@ class Config:
     # Length of the Fish Tracker window tracking blob metrics
     window_size: int = 10
 
-    # Masked fish crop classifier confidence threshold
-    classifier_conf: float = 0.25
-
     obsId_to_folder_map: dict[ParsedObservationID, Path] = {
         ParsedObservationID(
             observer="MLM",
