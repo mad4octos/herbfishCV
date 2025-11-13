@@ -177,6 +177,7 @@ class MultiBuilder:
         print(f"Creating job for observation '{obs_id}'")
 
         try:
+            print(f"Loading model weights from {ClassifierConfig.model_weights_path}")
             classifier = YOLO(ClassifierConfig.model_weights_path)
 
             masks = load_masks(masks_filepath)
