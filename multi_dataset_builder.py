@@ -24,7 +24,7 @@ from anomaly_rules import (
     SpikeAnomaly,
     AbsoluteThresholdAnomaly,
 )
-from configuration import Config, ParsedObservationID
+from configuration import Config, ParsedObservationID, ClassifierConfig
 from dataset_builder import DatumaroDatasetBuilder
 
 
