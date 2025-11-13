@@ -29,7 +29,7 @@ from typing import Literal
 # JGL_monopod_05302024_site5_east_B_Right_GX030843_masks.pkl
 # JGL_monopod_05302024_site5_east_B_Right_GX030843_annotations.npy
 
-DATA_ROOT_PATH = Path(FILL_ME)
+DATA_ROOT_PATH = Path(<FILL_ME>)
 
 
 # Constants for default values
