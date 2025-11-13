@@ -113,9 +113,6 @@ class ParsedObservationID:
 
 
 class Config:
-    # Path to classifier weights for detecting correctly masked fish
-    model_weights_path = Path(<<FILL_ME>>)
-
     # Path to CSV errors file
     errors_csv_filepath = DATA_ROOT_PATH / "SAM2_errors.csv"
 
@@ -125,6 +122,7 @@ class Config:
     # Path towards directory containing all the masks files
     masks_path = DATA_ROOT_PATH / "SAM2_masks"
 
+    # Path towards output exported CVAT and YOLO datasets
     output_path = DATA_ROOT_PATH / "exports"
 
     # Minimum bounding box area (in pixels) required for a blob to be considered valid.
@@ -160,13 +158,17 @@ class Config:
             side="Right",
             videoname="GX030843",
         ): DATA_ROOT_PATH / "frames" / "GX030843_frames",
-        ParsedObservationID(
-            observer="MLM",
-            date="05-15-2024",
-            site="site3",
-            direction="east",
-            ab="B",
-            side="Left",
-            videoname="GX056267",
-        ): Path(r"F:\DATASETS\GIL LAB\Example SAM2\stationary") / "GX056267_frames2",
     }
+
+
+class ClassifierConfig:
+    # Path towards raw classifier fish crops
+    data_path = Config.output_path / "extracted_crops"
+
+    # Path towards YOLO classification dataset
+    yolo_dataset_path = (
+        Config.output_path / "extracted_crops" / "yolo_classification_dataset"
+    )
+
+    # Path to classifier weights for detecting correctly masked fish
+    model_weights_path = Path(<FILL_ME>)

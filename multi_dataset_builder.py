@@ -182,8 +182,7 @@ class MultiBuilder:
         print(f"Creating job for observation '{obs_id}'")
 
         try:
-            config = Config()
-            classifier = YOLO(config.model_weights_path)
+            classifier = YOLO(ClassifierConfig.model_weights_path)
 
             masks = load_masks(masks_filepath)
             annotations_df = load_annotations(annot_filepath)
@@ -192,8 +191,8 @@ class MultiBuilder:
 
             # Blobs will be pre-filtered according to these rules
             blob_filter_rules = [
-                MinAreaRule(config.area_threshold),
-                MinSizeRule(config.min_size_threshold),
+                MinAreaRule(Config.area_threshold),
+                MinSizeRule(Config.min_size_threshold),
             ]
 
             # Anomalies across time in blob properties will be detected using these rules
@@ -218,14 +217,14 @@ class MultiBuilder:
                 classifier=classifier,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
-                classifier_conf=config.classifier_conf,
+                classifier_conf=Config.classifier_conf,
                 target_class="correct_fish_mask",
-                start_frame=config.start_frame,
-                max_frames=config.max_frames,
-                filename_num_zeros=config.number_of_zeros,
+                start_frame=Config.start_frame,
+                max_frames=Config.max_frames,
+                filename_num_zeros=Config.number_of_zeros,
                 verbose=False,
                 notebook_debug=False,
-                window_size=config.window_size,
+                window_size=Config.window_size,
             )
             dataset = builder.build()
 
