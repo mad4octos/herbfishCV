@@ -127,6 +127,7 @@ def load_masks(masks_filepath: Path) -> MasksType:
 
     with open(masks_filepath, "rb") as masks_file:
         masks: MasksType = pickle.load(masks_file)
+    print("Masks loaded correctly!")
     return masks
 
 
@@ -139,6 +140,7 @@ def load_annotations(annotations_filepath: Path):
     annotations_df = pd.DataFrame(list(annotations))
     annotations_df = annotations_df.sort_values(by=["Frame"]).reset_index(drop=True)
 
+    print("Annotations loaded correctly!")
     return annotations_df
 
 
