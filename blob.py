@@ -44,7 +44,9 @@ class BlobInfo:
         """Return the axis-aligned crop of the input image covering the blob bbox."""
         return image[self.y : self.y + self.h, self.x : self.x + self.w]
 
-    def mask_and_crop_blob(self, image: np.ndarray, remove_background=True):
+    def mask_and_crop_blob(
+        self, image: np.ndarray, remove_background=True, overlay_alpha=0.2
+    ):
         """Mask and crop an image.
 
         This function can either remove the background (default) or highlight the foreground (the blob)."""
@@ -55,7 +57,11 @@ class BlobInfo:
             image[self.get_dense_mask() != self.blob_num] = 0
         else:
             image = draw_mask_overlay(
-                image, self.get_dense_mask(), self.blob_num, color=(0, 0, 255)
+                image,
+                self.get_dense_mask(),
+                self.blob_num,
+                color=(0, 0, 255),
+                alpha=overlay_alpha,
             )
         return self.crop_from_image(image)
 
