@@ -47,11 +47,11 @@ class DatumaroDatasetBuilder:
         blob_rules: Iterable[BlobRule],
         window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
+        target_class: list[str],
         classifier_conf: float = 0.5,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
         filename_num_zeros: int = 8,
-        target_class=None,
         start_frame=0,
         max_frames=None,
         verbose: bool = False,
@@ -384,7 +384,7 @@ class DatumaroDatasetBuilder:
             prediction = classes[results.probs.top1]
             # conf = results.probs.top1conf.item()
 
-            if prediction == self.target_class:
+            if prediction in self.target_class:
                 blob.predicted_class = prediction
                 filtered_blobs.append(blob)
                 if self.notebook_debug:
