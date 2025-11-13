@@ -7,6 +7,12 @@
 
 - Run the `multi_dataset_builder.py` file. It will verify that all the input data is available before it starts running.
 
+This will:
+ - Load the masks, annotations and errors.
+ - Iterate through all the frames and masks, rejecting masks using a trained classifier and time series rules.
+ - Export the filtered object detecton bounding boxes into CVAT XML and Ultralytics YOLO (object-detection) formats. 
+ - Export a video for debug, to be found in the `Config.output_path` folder corresponding for the current ObservationID.
+
 ### `configuration.py` explanation
 
 - The `Config` class:
