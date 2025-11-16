@@ -11,6 +11,8 @@ from plot_utils import draw_mask_overlay
 
 @dataclass
 class BlobInfo:
+    """Container for blob-level metadata and geometry"""
+
     frame_idx: int
     obj_id: int
     blob_num: int
@@ -88,14 +90,6 @@ class BlobInfo:
             hull = cv2.convexHull(contours[i], False)
             hull_area = cv2.contourArea(hull)
             hulls.append(hull)
-
-        # For debugging
-        # drawing = np.zeros((mask.shape[0], mask.shape[1], 3), np.uint8)
-        # for i in range(len(contours)):
-        #     color_contours = (0, 255, 0)  # green - color for contours
-        #     color = (255, 0, 0)  # blue - color for convex hull
-        #     cv2.drawContours(drawing, contours, i, color_contours, 1, 8, hierarchy)
-        #     cv2.drawContours(drawing, hulls, i, color, 1, 8)
 
         self.solidity = round(self.area / hull_area, 2)
 

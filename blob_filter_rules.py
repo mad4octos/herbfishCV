@@ -1,6 +1,19 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+"""
+The difference between `AnomalyRule`s and `BlobRule`s is that `BlobRule`s decide
+whether an individual blob should be discarded **before** it enters the tracker,
+based solely on its instantaneous geometric properties (area, size, shape, etc.).
+
+`AnomalyRule`s, in contrast, operate **after** a blob has been accepted and tracked.
+They evaluate **temporal behavior** (metrics over time) to flag unusual or inconsistent
+changes in shape, motion, or appearance.
+
+There is an exception to this, and that's AbsoluteThresholdAnomaly.
+FIXME: Replace AbsoluteThresholdAnomaly with MaxAreaRule.
+"""
+
 
 class BlobRule(Protocol):
     """
