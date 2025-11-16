@@ -1,17 +1,35 @@
 
 ### Instructions
 
-- Fill the <FILL_ME> placeholders in the `configuration.py` file.
-  - `DATA_ROOT_PATH`: defines where all the data will be found.
-  - `ClassifierConfig.model_weights_path` defines where the model weights will be located.
+1) Fill the <FILL_ME> placeholders in the `configuration.py` file.
+    - `DATA_ROOT_PATH`: the base directory from which all other relative paths are resolved:
+        - `DATA_ROOT_PATH / "SAM2_errors.csv"`
+        - `DATA_ROOT_PATH / "location_annotations"`
+        - `DATA_ROOT_PATH / "SAM2_masks"`
+        - `DATA_ROOT_PATH / "exports"`
+    - `ClassifierConfig.model_weights_path` the full path to the model's weight file used by the masks classifier.
 
-- Run the `multi_dataset_builder.py` file. It will verify that all the input data is available before it starts running.
+2) To add a new observation and specify its location on disk, add a new `ParsedObservationID : <path>` entry under `Config.obsId_to_folder_map`, for example:
+    ```
+      ParsedObservationID(
+          observer="MLM",
+          date="04-27-2024",
+          site="site1",
+          direction="east",
+          ab="B",
+          side="Right",
+          videoname="GX040093",
+      ): DATA_ROOT_PATH / "frames" / "GX040093",
+    ```
+    
 
-This will:
- - Load the masks, annotations and errors.
- - Iterate through all the frames and masks, rejecting masks using a trained classifier and time series rules.
- - Export the filtered object detecton bounding boxes into CVAT XML and Ultralytics YOLO (object-detection) formats. 
- - Export a video for debug, to be found in the `Config.output_path` folder corresponding for the current ObservationID.
+3) Run the `multi_dataset_builder.py` file. It will verify that all required input data is available before starting.
+
+    This will:
+    - Load the masks, annotations and errors.
+    - Iterate through all the frames and masks, rejecting masks using a trained classifier and time series rules.
+    - Export the filtered object detecton bounding boxes into CVAT XML and Ultralytics YOLO (object-detection) formats. 
+    - Export a video for debug, to be found in the `Config.output_path` folder corresponding for the current ObservationID.
 
 ### `configuration.py` explanation
 
