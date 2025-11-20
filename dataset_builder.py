@@ -56,6 +56,9 @@ class DatumaroDatasetBuilder:
         max_frames=None,
         verbose: bool = False,
         notebook_debug=False,
+        video_fps:int = 2,
+        video_height:int=2160,
+        video_width:int=3840,
     ):
         """ """
         self.start_time = datetime.now()
@@ -72,7 +75,6 @@ class DatumaroDatasetBuilder:
         self.verbose = verbose
         self.classifier = classifier
         self.classifier_conf = classifier_conf
-        self.create_video_writer()
         self.dataset_items: list[datumaro.components.dataset_base.DatasetItem] = []
         self.count_empty_instance_masks = 0
         self.count_frames_with_errors = 0
@@ -86,24 +88,29 @@ class DatumaroDatasetBuilder:
         self.tracker_manager = FishTrackerManager(
             self.anomaly_rules, logger=self.logger, window_size=window_size
         )
+        self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
 
-    def create_video_writer(self):
+    def create_video_writer(self, fps:int, height:int, width:int):
         """ """
+        self.export_root_path.mkdir(parents=True, exist_ok=True)
+
         filepath = (
             self.export_root_path
             / f"{self.obs_id}_debug-exported-on-{self.start_time.strftime('%Y%m%d_%H%M%S')}.mp4"
         )
         try:
+
             self.video_writer = cv2.VideoWriter(
                 filename=str(filepath),
                 # *"MPEG", "MJPG", "mp4v", "FMP4"
                 fourcc=cv2.VideoWriter_fourcc(*"mp4v"),
-                fps=2,
-                frameSize=(3840, 2160),
+                fps=fps,
+                frameSize=(width, height),
                 isColor=True,
             )
+            self.logger.info(f"Video writer initialized. Output file: '{filepath}'")
         except Exception as e:
-            print("Problem during vide writer initialization: ", e)
+            self.logger.exception("Problem during video writer initialization")
 
     def setup_logging(self, log_to_console=True, level: int = logging.INFO):
         """
