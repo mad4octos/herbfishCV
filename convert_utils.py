@@ -181,18 +181,53 @@ def load_categories(
 
 
 def load_errors_df(filepath: Path, observation_id: ParsedObservationID):
-    """ """
+    """
+    Load and extract the error entries associated with a specific observation.
+
+     This function reads a CSV errors file, filters it to retain only the rows
+     that correspond to the given `observation_id`, and returns the resulting
+     DataFrame.
+
+     Parameters
+     ----------
+     filepath : Path
+         Path to the CSV file containing all recorded errors.
+     observation_id : ParsedObservationID
+         Parsed observation identifier used to locate the relevant subset of
+         rows in the errors DataFrame.
+
+     Returns
+     -------
+     pandas.DataFrame
+         A DataFrame containing only the error rows associated with the given
+         observation.
+
+     Raises
+     ------
+     AssertionError
+         If the given `observation_id` is not found in the errors file.
+
+     Side Effects
+     ------------
+     Prints diagnostic messages showing the file being read and the extracted
+     subset of errors for the observation.
+    """
     print(f"Reading errors from file '{filepath.absolute()}'")
     errors_df = pd.read_csv(filepath)
     observations_errors = find_obsId_in_errors_file(observation_id, errors_df)
-    assert observations_errors is not None
-    print(
-        f"Errors DataFrame for observation '{observation_id.to_str()}':\n",
-        observations_errors,
-    )
-    observations_errors = observations_errors.astype(
-        {"mistaken_frame_start": "int32", "mistaken_frame_end": "int32"}
-    )
+
+    if isinstance(observations_errors, pd.DataFrame):
+        observations_errors = observations_errors.astype(
+            {"mistaken_frame_start": "int32", "mistaken_frame_end": "int32"}
+        )
+        print(
+            f"Errors DataFrame for observation '{observation_id.to_str()}':\n",
+            observations_errors,
+        )
+    else:
+        raise ValueError(
+            f"Observation ID '{observation_id.to_str()}' not found in errors file."
+        )
     return observations_errors
 
 
