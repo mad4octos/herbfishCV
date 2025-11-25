@@ -1,6 +1,28 @@
 
 ### Instructions
 
+0) Prepare environment
+```
+mamba create -n ENV_NAME python=3.11
+```
+
+Activate the environment:
+```
+activate ENV_NAME
+```
+
+1) Install Rust, which is needed to compile the CVAT's Datumaro fork:
+
+```
+conda install conda-forge::rust
+```
+
+2) Install requirements:
+```
+pip install -r requirements.txt
+```
+
+
 1) Fill the <FILL_ME> placeholders in the `configuration.py` file.
     - `DATA_ROOT_PATH`: the base directory from which all other relative paths are resolved:
         - `DATA_ROOT_PATH / "SAM2_errors.csv"`
