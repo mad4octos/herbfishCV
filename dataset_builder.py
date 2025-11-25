@@ -229,17 +229,6 @@ class DatumaroDatasetBuilder:
             error_message = f"File '{image_filepath}' doesn't exist!"
             raise FileNotFoundError(error_message)
 
-        # Write the frame index on the top left corner of the frame
-        input_image = cv2.putText(
-            input_image,
-            f"Frame {extracted_frame_idx}",
-            (30, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.9,
-            (255, 255, 255),
-            2,
-        )
-
         # FIXME: too much functionality inside here
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
 
@@ -256,6 +245,18 @@ class DatumaroDatasetBuilder:
                 attributes={"frame": extracted_frame_idx},
             )
         )
+
+        if self.notebook_debug or (self.video_writer is not None):
+            # Write frame index on the top left corner of the frame
+            input_image = cv2.putText(
+                input_image,
+                f"Frame {extracted_frame_idx}",
+                (30, 30),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=0.9,
+                color=(255, 255, 255),
+                thickness=2,
+            )
 
         if self.notebook_debug:
             cv2_imshow(input_image)
