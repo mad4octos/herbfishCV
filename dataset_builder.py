@@ -164,6 +164,13 @@ class DatumaroDatasetBuilder:
         datumaro.components.dataset.Dataset
             A Datumaro Dataset object containing DatasetItems with bounding box annotations.
         """
+        if not self.error_frames:
+            self.logger.warning(
+                "No CSV frame errors will be used because none were found!"
+            )
+        else:
+            self.logger.info(f"Frames with errors (from CSV): {self.error_frames}")
+
         for extracted_frame_idx, frame_masks in tqdm(self.masks.items()):
             if extracted_frame_idx < self.start_frame:
                 continue
@@ -171,7 +178,10 @@ class DatumaroDatasetBuilder:
             if (self.max_frames is not None) and (
                 extracted_frame_idx >= (self.start_frame + self.max_frames)
             ):
-                print("Breaking because max number of frames has been reached.")
+                self.logger.info(
+                    f"Breaking because max number of frames has been reached."
+                    f"Started at frame {self.start_frame}, stopped after {self.max_frames} frames."
+                )
                 break
 
             self._process_frame(extracted_frame_idx, frame_masks)
@@ -201,7 +211,9 @@ class DatumaroDatasetBuilder:
         self.logger.info(f"Processing frame {extracted_frame_idx}...")
 
         if extracted_frame_idx in self.error_frames:
-            print(f"Frame {extracted_frame_idx} has errors in the CSV. Skipping.")
+            self.logger.warning(
+                f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
+            )
             self.count_frames_with_errors += 1
             return
 
