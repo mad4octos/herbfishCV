@@ -105,8 +105,7 @@ class ParsedObservationID:
     ) -> str:
         """
         Reconstruct the 'masks/results' style ID:
-        <observer>_<date>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>_<colorcorrection?>
-        (date uses YYYYMMDD if we can; otherwise date_raw)
+        <observer>_<date>_<site>_<direction>_<A|B>_<Left|Right>_<videoname>_<colorcorrection?>
         """
         parts = []
         if has_observer:
