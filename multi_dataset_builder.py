@@ -21,42 +21,12 @@ from blob_filter_rules import MinAreaRule, MinSizeRule
 from anomaly_rules import create_anomaly_rules
 from configuration import Config, ParsedObservationID, ClassifierConfig
 from dataset_builder import DatumaroDatasetBuilder
-from convert_utils import find_obsId_in_errors_file, ObservationIdSimilarity
-
-
-def find_existing_file(
-    base_path: Path, obs_id_object: ParsedObservationID, suffix: str
-) -> Optional[Path]:
-    """ """
-
-    checked_files = []
-    for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
-        for has_token in (True, False):
-            obs_id_str = obs_id_object.to_str(
-                has_monopod_token=has_token,
-                output_date_format=date_format,
-            )
-            candidate = base_path / f"{obs_id_str}{suffix}"
-            checked_files.append(str(candidate))
-
-            if candidate.exists():
-                if candidate.is_file():
-                    return candidate
-
-    print("Target file wasn't found, the following files were checked:")
-    for s in checked_files:
-        print(f" - '{s}'")
-    return None
-
-
-def find_annot(base_path: Path, obs_id_object: ParsedObservationID):
-    """"""
-    return find_existing_file(base_path, obs_id_object, "_annotations.npy")
-
-
-def find_masks(base_path: Path, obs_id_object: ParsedObservationID):
-    """"""
-    return find_existing_file(base_path, obs_id_object, "_masks.pkl")
+from convert_utils import (
+    find_annot,
+    find_masks,
+    find_obsId_in_errors_file,
+    ObservationIdSimilarity,
+)
 
 
 class MultiBuilder:
