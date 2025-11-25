@@ -56,9 +56,9 @@ class DatumaroDatasetBuilder:
         max_frames=None,
         verbose: bool = False,
         notebook_debug=False,
-        video_fps:int = 2,
-        video_height:int=2160,
-        video_width:int=3840,
+        video_fps: int = 2,
+        video_height: int = 2160,
+        video_width: int = 3840,
     ):
         """ """
         self.start_time = datetime.now()
@@ -90,7 +90,7 @@ class DatumaroDatasetBuilder:
         )
         self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
 
-    def create_video_writer(self, fps:int, height:int, width:int):
+    def create_video_writer(self, fps: int, height: int, width: int):
         """ """
         self.export_root_path.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +99,6 @@ class DatumaroDatasetBuilder:
             / f"{self.obs_id}_debug-exported-on-{self.start_time.strftime('%Y%m%d_%H%M%S')}.mp4"
         )
         try:
-
             self.video_writer = cv2.VideoWriter(
                 filename=str(filepath),
                 # *"MPEG", "MJPG", "mp4v", "FMP4"
