@@ -2,6 +2,8 @@
 import pickle
 from enum import IntEnum
 from pathlib import Path
+from dataclasses import dataclass
+from collections import defaultdict
 
 # External imports
 import cv2
@@ -12,9 +14,11 @@ import pandas as pd
 import torch
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
+from thefuzz import fuzz
 
 # Local imports
 from blob import BlobInfo
+from configuration import ParsedObservationID
 
 # Type aliases for the masks file
 FrameIndex = int
@@ -175,14 +179,20 @@ def load_categories(
     return {AnnotationType.label: label_categories}
 
 
-def load_errors_df(filepath: Path, observation_id: str):
+def load_errors_df(filepath: Path, observation_id: ParsedObservationID):
     """ """
+    print(f"Reading errors from file '{filepath.absolute()}'")
     errors_df = pd.read_csv(filepath)
-    video_errors_df = errors_df[errors_df.obsID == observation_id]
-    video_errors_df = video_errors_df.astype(
+    observations_errors = find_obsId_in_errors_file(observation_id, errors_df)
+    assert observations_errors is not None
+    print(
+        f"Errors DataFrame for observation '{observation_id.to_str()}':\n",
+        observations_errors,
+    )
+    observations_errors = observations_errors.astype(
         {"mistaken_frame_start": "int32", "mistaken_frame_end": "int32"}
     )
-    return video_errors_df
+    return observations_errors
 
 
 def extract_error_frames(video_errors_df) -> list[int]:
@@ -292,3 +302,59 @@ def adf_test(timeseries, significance_level=0.05):
         return "non-stationary"
     else:
         return "stationary"
+
+
+@dataclass
+class ObservationIdSimilarity:
+    comparisons: dict[str, list[tuple[str, int]]]
+
+    def __str__(self):
+        lines = ["Couldn't find observation id in errors file!\n"]
+
+        for tested, sims in self.comparisons.items():
+            lines.append(f"Tested format: '{tested}'")
+
+            # Sort highest to lowest similarity
+            sims_sorted = sorted(sims, key=lambda x: x[1], reverse=True)
+
+            # Show top 5
+            for obs_id, score in sims_sorted[:5]:
+                lines.append(f"  - Similar to '{obs_id}' (score: {score})")
+
+            lines.append("")  # blank line between groups
+
+        return "\n".join(lines)
+
+
+def find_obsId_in_errors_file(
+    obs_id_object: ParsedObservationID, errors_df: pd.DataFrame
+) -> pd.DataFrame | ObservationIdSimilarity:
+    """
+    Try multiple string formats of an observation ID to find a match in the
+    errors CSV. If a match is found, return the matching rows. If no exact
+    match is found, return a list of similarity scores between the generated
+    obsID strings and all available obsIDs in the file.
+    """
+    # To store the similarity score of each available obsID in the CSV
+    # and return it if no match was found
+    comparisons: dict[str, list[tuple[str, int]]] = defaultdict(list)
+
+    for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
+        for has_token in (True, False):
+            obs_id_str = obs_id_object.to_str(
+                has_observer=False,
+                has_monopod_token=has_token,
+                output_date_format=date_format,
+            )
+
+            # Check exact match
+            matching_rows = errors_df[errors_df.obsID == obs_id_str]
+            if not matching_rows.empty:
+                return matching_rows
+
+            # Collect similarity info for this version of the observation id
+            for available_obs_id in errors_df.obsID.unique():
+                score = fuzz.ratio(obs_id_str, available_obs_id)
+                comparisons[obs_id_str].append((available_obs_id, score))
+
+    return ObservationIdSimilarity(comparisons)

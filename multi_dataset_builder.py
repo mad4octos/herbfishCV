@@ -21,24 +21,7 @@ from blob_filter_rules import MinAreaRule, MinSizeRule
 from anomaly_rules import create_anomaly_rules
 from configuration import Config, ParsedObservationID, ClassifierConfig
 from dataset_builder import DatumaroDatasetBuilder
-
-
-def find_obsId_in_errors_file(
-    obs_id_object: ParsedObservationID, errors_df: pd.DataFrame
-) -> bool:
-    """ """
-
-    for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
-        for has_token in (True, False):
-            obs_id_str = obs_id_object.to_str(
-                has_observer=False,
-                has_monopod_token=has_token,
-                output_date_format=date_format,
-            )
-            matching_rows = errors_df[errors_df.obsID == obs_id_str]
-            if not matching_rows.empty:
-                return True
-    return False
+from convert_utils import find_obsId_in_errors_file, ObservationIdSimilarity
 
 
 def find_existing_file(
@@ -90,7 +73,7 @@ class MultiBuilder:
         self.masks_path = masks_path
         self.annot_path = annot_path
 
-    def load_error_frames(self, obs_id: str):
+    def load_error_frames(self, obs_id: ParsedObservationID):
         """ """
         errors_df = load_errors_df(self.errors_csv_filepath, obs_id)
         return extract_error_frames(errors_df)
@@ -131,10 +114,9 @@ class MultiBuilder:
             # Check for the existence of the observation ID on the errors file
             ############################################################################################################
             errors_df = pd.read_csv(self.errors_csv_filepath)
-            exists_in_errors = find_obsId_in_errors_file(obs_id_object, errors_df)
-            if not exists_in_errors:
-                print(" - [WARNING] Couldn't find observation id in errors file!")
-                # TODO: show closely related matches to the user.
+            result = find_obsId_in_errors_file(obs_id_object, errors_df)
+            if isinstance(result, ObservationIdSimilarity):
+                print(result)
             else:
                 print(" - Found observation id in errors file")
 
@@ -146,11 +128,12 @@ class MultiBuilder:
 
         try:
             for obs_id_object, images_path in self.obsId_to_folder_map.items():
+                # It's assumed that the existence of annotations and masks has been previously asserted
                 masks_filepath = find_masks(self.masks_path, obs_id_object)
                 annot_filepath = find_annot(self.annot_path, obs_id_object)
+                obsId_error_frames = self.load_error_frames(obs_id_object)
 
                 obs_id_str = obs_id_object.to_str()
-                obsId_error_frames = self.load_error_frames(obs_id_str)
 
                 self.run_process(
                     obs_id_str,
