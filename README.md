@@ -31,7 +31,7 @@ pip install -r requirements.txt
         - `DATA_ROOT_PATH / "exports"`
     - `ClassifierConfig.model_weights_path` the full path to the model's weight file used by the masks classifier.
 
-2) To add a new observation and specify its location on disk, add a new `ParsedObservationID : <path>` entry under `Config.obsId_to_folder_map`, for example:
+2) To add a new observation and specify its location on disk, add a new `ParsedObservationID : <path>` entry under `Config.obsId_to_folder_map` in the `configuration.py` file, for example:
     ```
       ParsedObservationID(
           observer="MLM",
