@@ -2,6 +2,7 @@
 import pickle
 from enum import IntEnum
 from pathlib import Path
+from typing import Optional
 from dataclasses import dataclass
 from collections import defaultdict
 
