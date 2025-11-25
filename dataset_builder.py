@@ -184,7 +184,12 @@ class DatumaroDatasetBuilder:
                 )
                 break
 
-            self._process_frame(extracted_frame_idx, frame_masks)
+            try:
+                self._process_frame(extracted_frame_idx, frame_masks)
+            except FileNotFoundError:
+                self.video_writer.release()
+                self.logger.exception("Stopping due to exception.")
+                raise
 
         dataset = datumaro.components.dataset.Dataset.from_iterable(
             self.dataset_items, categories=self.label_categories
@@ -221,7 +226,8 @@ class DatumaroDatasetBuilder:
         image_filepath = self.images_path / filename
         input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
         if input_image is None:
-            raise FileNotFoundError("Frame file doesn't exist!")
+            error_message = f"File '{image_filepath}' doesn't exist!"
+            raise FileNotFoundError(error_message)
 
         # Write the frame index on the top left corner of the frame
         input_image = cv2.putText(
