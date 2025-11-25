@@ -113,6 +113,9 @@ class MultiBuilder:
                     obsId_error_frames,
                     output_path / obs_id_str,
                 )
+                pbar.update(1)
+
+            pbar.close()
 
         except Exception as e:
             print("Exception", str(e))
