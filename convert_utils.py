@@ -173,7 +173,7 @@ def load_categories(
     annotations_df: pd.DataFrame,
 ) -> datumaro.components.dataset_base.CategoriesInfo:
     """Load Datumaro categories data"""
-    label_categories = LabelCategories()
+    label_categories = LabelCategories(attributes={"ObjID"})
     for class_name in annotations_df.ObjType.unique():
         label_categories.add(class_name)
 

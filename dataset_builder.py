@@ -430,7 +430,11 @@ class DatumaroDatasetBuilder:
                 self.label_categories,
             )
             x, y, w, h = blob.bbox_xywh
-            output.append(DatumaroBbox(x, y, w, h, label=label_id))
+            output.append(
+                DatumaroBbox(
+                    x, y, w, h, label=label_id, attributes={"ObjID": blob.obj_id}
+                )
+            )
         return output
 
     def _print_statistics(self) -> None:
