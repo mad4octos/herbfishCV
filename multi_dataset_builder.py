@@ -2,6 +2,7 @@
 from pathlib import Path
 import multiprocessing as mp
 from typing import Optional
+import argparse
 
 # External imports
 from ultralytics import YOLO
@@ -29,6 +30,20 @@ from convert_utils import (
 )
 
 
+def parse_args():
+    """ """
+    parser = argparse.ArgumentParser(
+        description="Run YOLO classify and move images whose top class is in discard list."
+    )
+    parser.add_argument(
+        "--ignore-missing-observation-ids",
+        action="store_true",
+        help="Do not stop execution when an observation ID is missing from SAM2_errors.csv.",
+    )
+
+    return parser.parse_args()
+
+
 class MultiBuilder:
     def __init__(
         self,
@@ -36,14 +51,16 @@ class MultiBuilder:
         obsId_to_folder_map: dict[ParsedObservationID, Path],
         masks_path: Path,
         annot_path: Path,
+        ignore_missing_observation_ids: bool = False,
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
         self.errors_csv_filepath = errors_csv_filepath
         self.masks_path = masks_path
         self.annot_path = annot_path
+        self.ignore_missing_observation_ids = ignore_missing_observation_ids
 
-    def load_error_frames(self, obs_id: ParsedObservationID):
+    def load_error_frames(self, obs_id: ParsedObservationID) -> list[int]:
         """ """
         errors_df = load_errors_df(self.errors_csv_filepath, obs_id)
         return extract_error_frames(errors_df)
@@ -85,9 +102,16 @@ class MultiBuilder:
             ############################################################################################################
             errors_df = pd.read_csv(self.errors_csv_filepath)
             result = find_obsId_in_errors_file(obs_id_object, errors_df)
+            
             if isinstance(result, ObservationIdSimilarity):
+                print("Couldn't find observation id in errors file.")
                 print(result)
-            else:
+                if not self.ignore_missing_observation_ids:
+                    raise ValueError(
+                        f"Observation ID '{obs_id_object.to_str()}' not found in errors file.\n"
+                        "Run with --ignore-missing-observation-ids flag to ognore missing Observation IDs."
+                    )
+            elif isinstance(result, pd.DataFrame):
                 print(" - Found observation id in errors file")
 
     def build_all(self, output_path: Path):
@@ -199,11 +223,13 @@ class MultiBuilder:
 
 
 if __name__ == "__main__":
+    args = parse_args()
     mb = MultiBuilder(
         Config.errors_csv_filepath,
         Config.obsId_to_folder_map,
         Config.masks_path,
         Config.annot_path,
+        args.ignore_missing_observation_ids,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)

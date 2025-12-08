@@ -180,7 +180,9 @@ def load_categories(
     return {AnnotationType.label: label_categories}
 
 
-def load_errors_df(filepath: Path, observation_id: ParsedObservationID):
+def load_errors_df(
+    filepath: Path, observation_id: ParsedObservationID
+) -> Optional[pd.DataFrame]:
     """
     Load and extract the error entries associated with a specific observation.
 
@@ -198,14 +200,9 @@ def load_errors_df(filepath: Path, observation_id: ParsedObservationID):
 
      Returns
      -------
-     pandas.DataFrame
-         A DataFrame containing only the error rows associated with the given
-         observation.
-
-     Raises
-     ------
-     AssertionError
-         If the given `observation_id` is not found in the errors file.
+     pandas.DataFrame or None
+        A DataFrame containing only the error rows associated with the given
+        observation, or ``None`` if no matching entries are found.
 
      Side Effects
      ------------
@@ -224,14 +221,10 @@ def load_errors_df(filepath: Path, observation_id: ParsedObservationID):
             f"Errors DataFrame for observation '{observation_id.to_str()}':\n",
             observations_errors,
         )
-    else:
-        raise ValueError(
-            f"Observation ID '{observation_id.to_str()}' not found in errors file."
-        )
-    return observations_errors
+        return observations_errors
 
 
-def extract_error_frames(video_errors_df) -> list[int]:
+def extract_error_frames(video_errors_df: Optional[pd.DataFrame]) -> list[int]:
     """
     Extract all unique frame indices that fall within mistaken frame ranges.
 
@@ -241,6 +234,9 @@ def extract_error_frames(video_errors_df) -> list[int]:
     Returns:
         list[int]: Sorted list of unique frame indices containing errors.
     """
+    if video_errors_df is None:
+        return []
+
     all_error_frames = []
 
     for _, row in video_errors_df.iterrows():
@@ -342,11 +338,15 @@ def adf_test(timeseries, significance_level=0.05):
 
 @dataclass
 class ObservationIdSimilarity:
+    """
+    Stores similarity comparison results between tested observation IDs and existent observation IDs.
+    """
+
+    # tested_obs_id_str : (available_obs_id_str, score)
     comparisons: dict[str, list[tuple[str, int]]]
 
     def __str__(self):
-        lines = ["Couldn't find observation id in errors file!\n"]
-
+        lines = []
         for tested, sims in self.comparisons.items():
             lines.append(f"Tested format: '{tested}'")
 
