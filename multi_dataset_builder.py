@@ -27,6 +27,7 @@ from convert_utils import (
     find_masks,
     find_obsId_in_errors_file,
     ObservationIdSimilarity,
+    next_run_dir,
 )
 
 
@@ -174,6 +175,8 @@ class MultiBuilder:
             # Anomalies across time in blob properties will be detected using these rules
             anomaly_rules = create_anomaly_rules(Config.anomaly_rules)
 
+            run_dir = next_run_dir(export_root_path)
+
             builder = DatumaroDatasetBuilder(
                 obs_id=obs_id,
                 masks=masks,
@@ -181,7 +184,7 @@ class MultiBuilder:
                 chunked_df=chunked_df,
                 label_categories=label_categories,
                 images_path=images_path,
-                export_root_path=export_root_path,
+                export_root_path=run_dir,
                 classifier=classifier,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
@@ -196,8 +199,8 @@ class MultiBuilder:
             )
             dataset = builder.build()
 
-            cvat_out = export_root_path / "dataset_cvat"
-            yolo_out = export_root_path / "dataset_yolo"
+            cvat_out = run_dir / "dataset_cvat"
+            yolo_out = run_dir / "dataset_yolo"
 
             dataset.export(str(cvat_out), format="cvat")
             dataset.export(

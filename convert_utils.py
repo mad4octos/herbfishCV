@@ -429,3 +429,30 @@ def find_annot(base_path: Path, obs_id_object: ParsedObservationID):
 def find_masks(base_path: Path, obs_id_object: ParsedObservationID):
     """"""
     return find_existing_file(base_path, obs_id_object, "_masks.pkl")
+
+
+def next_run_dir(root: Path, prefix: str = "run_") -> Path:
+    """
+    Create and return the next 'run_N' directory under `root`.
+    If no run_N directories exist, creates run_1.
+    """
+    run_numbers = []
+    for item in root.iterdir():
+        if not item.is_dir():
+            continue
+
+        if not item.name.startswith(prefix):
+            continue
+
+        suffix = item.name.replace(prefix, "")
+        if suffix.isdigit():
+            run_numbers.append(int(suffix))
+
+    next_number = 1
+    if run_numbers:
+        next_number = max(run_numbers) + 1
+
+    run_dir = root / f"run_{next_number}"
+    run_dir.mkdir(parents=True, exist_ok=False)
+
+    return run_dir
