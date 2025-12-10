@@ -1,2 +1,5 @@
 supervision==0.26.1
 datumaro[default] @ git+https://github.com/cvat-ai/datumaro@866f27c70970467b169c81de33678d3bf8dcfca8
+ultralytics
+thefuzz
+statsmodels
