@@ -10,7 +10,8 @@ import cv2
 import datumaro.components.dataset
 import datumaro.components.dataset_base
 import datumaro.components.media
-from datumaro.components.annotation import Bbox as DatumaroBbox
+from datumaro.components.annotation import RleMask, Annotation
+import datumaro.util.mask_tools as mask_tools
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -232,7 +233,7 @@ class DatumaroDatasetBuilder:
         # FIXME: too much functionality inside here
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
 
-        bounding_boxes = self.create_datumaro_boxes(blobs)
+        annotations = self.create_datumaro_annotations(blobs)
 
         self.tracker_manager.filter_dead_trackers()
 
@@ -241,7 +242,7 @@ class DatumaroDatasetBuilder:
                 id=filename.split(".")[0],
                 subset="train",
                 media=datumaro.components.media.Image.from_file(str(image_filepath)),
-                annotations=bounding_boxes,
+                annotations=annotations,
                 attributes={"frame": extracted_frame_idx},
             )
         )
@@ -417,7 +418,7 @@ class DatumaroDatasetBuilder:
 
         return filtered_blobs
 
-    def create_datumaro_boxes(self, blobs: list[BlobInfo]) -> list[DatumaroBbox]:
+    def create_datumaro_annotations(self, blobs: list[BlobInfo]) -> list[Annotation]:
         """Add labels to bounding boxes based on object ID and DataFrame."""
 
         output = []
@@ -429,12 +430,20 @@ class DatumaroDatasetBuilder:
                 blob.obj_id,
                 self.label_categories,
             )
-            x, y, w, h = blob.bbox_xywh
+
+            dense_mask = blob.get_blob_mask()
+            compressed_rle = mask_tools.mask_to_rle(dense_mask)
+            uncompressed_rle = mask_tools.to_uncompressed_rle(
+                compressed_rle, width=blob.w, height=blob.h
+            )
             output.append(
-                DatumaroBbox(
-                    x, y, w, h, label=label_id, attributes={"ObjID": blob.obj_id}
+                RleMask(
+                    rle=uncompressed_rle,
+                    label=label_id,
+                    attributes={"ObjID": blob.obj_id},
                 )
             )
+
         return output
 
     def _print_statistics(self) -> None:

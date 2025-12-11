@@ -112,6 +112,11 @@ class BlobInfo:
         normalized_compactness = float((P**2) / (4 * np.pi * A + 1e-9))
         self.compactness = round(normalized_compactness, 2)
 
+    def get_blob_mask(self):
+        """ """
+        mask = (self.get_dense_mask() == self.blob_num).astype(np.uint8) * 255
+        return mask
+
     def store_mask(self, array: np.ndarray):
         """Store labeled mask as a sparse tensor"""
         self.labeled_mask = dense_mask_numpy_to_sparse_tensor(array)
