@@ -436,6 +436,8 @@ def next_run_dir(root: Path, prefix: str = "run_") -> Path:
     Create and return the next 'run_N' directory under `root`.
     If no run_N directories exist, creates run_1.
     """
+    root.mkdir(parents=True, exist_ok=True)
+
     run_numbers = []
     for item in root.iterdir():
         if not item.is_dir():
