@@ -199,16 +199,8 @@ class MultiBuilder:
             )
             dataset = builder.build()
 
-            cvat_out = run_dir / "dataset_cvat"
-            yolo_out = run_dir / "dataset_yolo"
-
-            dataset.export(str(cvat_out), format="cvat")
-            dataset.export(
-                str(yolo_out),
-                format="yolo_ultralytics_detection",
-                add_path_prefix=False,
-                save_media=True,
-            )
+            coco_out = run_dir / "dataset_coco"
+            dataset.export(str(coco_out), format="coco", save_media=True, tasks="instances")
 
             print(f"Finished: '{obs_id}', results written to '{export_root_path}'.")
 
