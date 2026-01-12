@@ -5,35 +5,10 @@ from pathlib import Path
 from typing import Literal
 
 """
-Note: The class ParsedObservationID is here because it's needed for the configuration and I prefer to keep the 
-configuration file self-contained to avoid potential circular dependencies.
+Note: The classes ParsedObservationID and ManualObservationID are here because they are needed for the configuration 
+and I prefer to keep the configuration file self-contained to avoid potential circular dependencies.
 """
 
-
-# Naming convention for the ObservationID of stationary data.
-#
-# - On the SAM2_Errors, this is specified as:
-#     <monopod>_<date-recorded>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>
-#
-# - For the masks and results videos, this is specified as:
-#     <observer>_<date>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>_<colorcorrection>
-#
-#   NOTE: I've seen variations for the Observation ID on the masks files, like:
-#     <observer>_monopod_<date><...>
-#     <videoname>
-#     <videoname>_synced
-#
-# - Date recorded may be in the format of MM-DD-YYYY or MMDDYY
-#
-# - If no color correction was used, it will be blank in the observationID for the masks/results.
-#
-# For some videos, color correction methods (LACC or retinex) was used on the frames.
-# For the SAM2_Errors.csv, that will be specified in the Enhancement column of the SAM2 errors. If a color
-# correction was used, the corresponding folder of frames will be video_name_LACC or video_name_ret
-#
-# Examples:
-# JGL_monopod_05302024_site5_east_B_Right_GX030843_masks.pkl
-# JGL_monopod_05302024_site5_east_B_Right_GX030843_annotations.npy
 
 DATA_ROOT_PATH = Path(<FILL_ME>)
 
@@ -44,6 +19,54 @@ class AnomalyDefaults:
     DISPLACEMENT_THRESHOLD_PX = 300
     ZSCORE_WINDOW = 10
     AREA_MAX_THRESHOLD = 250000
+
+
+@dataclass(frozen=True)
+class ManualObservationID:
+    """
+    Manual observation ID specification for pipelines where observation IDs
+    are already known and don't need parsing/formatting.
+
+    This allows you to specify exact observation ID strings as they appear in:
+    - The errors CSV file (errors_obs_id)
+    - The masks file (masks_filename )
+    - The annotations file (annotations_filename)
+
+    Parameters
+    ----------
+    errors_obs_id : str
+        The exact observation ID string as it appears in the errors CSV file
+    masks_filename : str
+        The base filename for the masks file (e.g., "video_name_masks.pkl")
+    annotations_filename : str
+        The base filename for the annotations file (e.g., "video_name_annotations.npy")
+    display_name : str, optional
+        A friendly name for display/logging purposes. If not provided, uses errors_obs_id
+
+    Example
+    -------
+    ManualObservationID(
+        errors_obs_id="JM_060724_152_playa_largu_scuba_TPScv_L",
+        masks_filename="CR_JM_060724_152_playa_largu_scuba_TPScv_L_masks.pkl",
+        annotations_filename="CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy",
+    )
+    """
+
+    errors_obs_id: str
+    masks_filename: str
+    annotations_filename: str
+    display_name: str | None = None
+
+    def __post_init__(self):
+        """Set display_name to errors_obs_id if not provided."""
+        if self.display_name is None:
+            object.__setattr__(self, "display_name", self.errors_obs_id)
+
+    def to_str(self) -> str:
+        """Return display name for consistency with ParsedObservationID interface."""
+        return (
+            self.display_name if self.display_name is not None else self.errors_obs_id
+        )
 
 
 @dataclass(frozen=True)
@@ -158,16 +181,22 @@ class Config:
     # Length of the Fish Tracker window tracking blob metrics
     window_size: int = 10
 
-    obsId_to_folder_map: dict[ParsedObservationID, Path] = {
-        ParsedObservationID(
-            observer="MLM",
-            date="04-27-2024",
-            site="site1",
-            direction="east",
-            ab="B",
-            side="Right",
-            videoname="GX040093",
-        ): DATA_ROOT_PATH / "frames" / "GX040093",
+    obsId_to_folder_map: dict[ParsedObservationID | ManualObservationID, Path] = {
+        # ParsedObservationID(
+        #     observer="MLM",
+        #     date="04-27-2024",
+        #     site="site1",
+        #     direction="east",
+        #     ab="B",
+        #     side="Right",
+        #     videoname="GX040093",
+        # ): DATA_ROOT_PATH / "frames" / "GX040093",
+
+        # ManualObservationID(
+        #     errors_obs_id="JM_060724_152_playa_largu_scuba_TPScv_L",
+        #     masks_filename ="CR_JM_060724_152_playa_largu_scuba_TPScv_L_mask.pkl",
+        #     annotations_filename ="CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy",
+        # ): Path("/path/to/images/MH_JM_060724_152_L"),
     }
 
     anomaly_rules = [

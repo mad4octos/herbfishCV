@@ -53,6 +53,66 @@ pip install -r requirements.txt
     - Export the filtered object detection bounding boxes into CVAT XML and Ultralytics YOLO (object-detection) formats. 
     - Export a video for debug, to be found in the `Config.output_path` folder corresponding for the current ObservationID.
 
+### Observation ID Naming Conventions (Stationary Project)
+
+The stationary project uses `ParsedObservationID` to automatically format observation IDs from constituent parts. Below are the naming conventions used across different file types.
+
+**SAM2_Errors.csv format:**
+```
+<monopod>_<date-recorded>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>
+```
+
+**Masks and annotations format:**
+```
+<observer>_<date>_<site>_<direction>_<A/B>_<Left/Right>_<videoname>_<colorcorrection>
+```
+
+> **Note:** Variations exist for masks files, such as:
+> - `<observer>_monopod_<date><...>`
+> - `<videoname>`
+> - `<videoname>_synced`
+
+**Date format variations:**
+- `MM-DD-YYYY` (e.g., `05-30-2024`)
+- `MMDDYY` (e.g., `053024`)
+
+**Color correction:**
+For some videos, color correction methods (LACC or retinex) were applied to the frames. This is specified in the `Enhancement` column of the SAM2_Errors.csv. If color correction was used, the corresponding frames folder will be named `<videoname>_LACC` or `<videoname>_ret`. If no color correction was used, it will be blank in the observation ID.
+
+**Example files:**
+```
+JGL_monopod_05302024_site5_east_B_Right_GX030843_masks.pkl
+JGL_monopod_05302024_site5_east_B_Right_GX030843_annotations.npy
+```
+
+### Using ManualObservationID (Focal Follow Project)
+
+The focal follow project uses `ManualObservationID` to specify exact observation ID strings when file naming conventions don't follow the standard `ParsedObservationID` format.
+
+**Parameters:**
+- `errors_obs_id`: The observation ID as it appears in the SAM2_errors.csv file
+- `masks_filename`: The exact filename of the masks `.pkl` file
+- `annotations_filename`: The exact filename of the annotations `.npy` file
+
+**Example usage in `configuration.py`:**
+```python
+ManualObservationID(
+    errors_obs_id="JM_060724_152_playa_largu_scuba_TPScv_L",
+    masks_filename="CR_JM_060724_152_playa_largu_scuba_TPScv_L_mask.pkl",
+    annotations_filename="CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy",
+): Path("/path/to/images/MH_JM_060724_152_L"),
+```
+
+**Example usage via command line:**
+```bash
+python multi_dataset_builder.py --manual \
+    --errors-obs-id="JM_060724_152_playa_largu_scuba_TPScv_L" \
+    --errors-csv-filepath="/path/to/SAM2_errors.csv" \
+    --masks-filepath="/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_mask.pkl" \
+    --annot-filepath="/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy" \
+    --images-dirpath "/path/to/JM_060724"
+```
+
 ### `configuration.py` explanation
 
 - The `Config` class:

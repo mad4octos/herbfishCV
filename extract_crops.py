@@ -10,7 +10,7 @@ from tqdm import tqdm
 from convert_utils import load_masks, _get_frame_filename, get_blobs_from_mask, BlobInfo
 from common import sparse_mask_tensor_to_dense_numpy
 from multi_dataset_builder import find_masks
-from configuration import Config, ClassifierConfig, ParsedObservationID
+from configuration import Config, ClassifierConfig, ParsedObservationID, ManualObservationID
 
 
 def get_filtered_blobs(
@@ -72,7 +72,7 @@ def extract_blobs(
             cv2.imwrite(str(blob_filename), crop)
 
 
-def main(obsId_to_folder_map: dict[ParsedObservationID, Path], output_folder: Path):
+def main(obsId_to_folder_map: dict[ParsedObservationID | ManualObservationID, Path], output_folder: Path):
     """ """
 
     filename_num_zeros = Config.number_of_zeros
