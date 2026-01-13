@@ -20,7 +20,7 @@ from convert_utils import (
 )
 from blob_filter_rules import MinAreaRule, MinSizeRule
 from anomaly_rules import create_anomaly_rules
-from configuration import Config, ParsedObservationID, ClassifierConfig
+from configuration import Config, ParsedObservationID, ManualObservationID, ClassifierConfig
 from dataset_builder import DatumaroDatasetBuilder
 from convert_utils import (
     find_annot,
@@ -34,7 +34,21 @@ from convert_utils import (
 def parse_args():
     """ """
     parser = argparse.ArgumentParser(
-        description="Run YOLO classify and move images whose top class is in discard list."
+        description="Build datasets from SAM2 masks and annotations.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Use configuration from Config class (default)
+  python multi_dataset_builder.py
+
+  # Pass a ManualObservationID directly via CLI
+  python multi_dataset_builder.py --manual \\
+      --errors-csv-filepath "/path/to/SAM2_errors.csv" \\
+      --errors-obs-id "JM_060724_152_playa_largu_scuba_TPScv_L" \\
+      --masks-filepath "/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_mask.pkl" \\
+      --annot-filepath "/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy" \\
+      --images-dirpath "/path/to/images/MH_JM_060724_152_L"
+        """
     )
     parser.add_argument(
         "--ignore-missing-observation-ids",
@@ -42,14 +56,58 @@ def parse_args():
         help="Do not stop execution when an observation ID is missing from SAM2_errors.csv.",
     )
 
-    return parser.parse_args()
+    # Manual observation ID arguments
+    parser.add_argument(
+        "--manual",
+        action="store_true",
+        help="Use manual observation ID mode instead of Config.obsId_to_folder_map.",
+    )
+    parser.add_argument(
+        "--errors-obs-id",
+        type=str,
+        help="The exact observation ID string as it appears in the errors CSV file.",
+    )
+    parser.add_argument(
+        "--errors-csv-filepath",
+        type=Path,
+        help="The absolute file path for the errors csv file (e.g., '/path/to/SAM2_errors.csv').",
+    )
+    parser.add_argument(
+        "--masks-filepath",
+        type=Path,
+        help="The absolute file path for the masks file (e.g., '/path/to/video_name_mask.pkl').",
+    )
+    parser.add_argument(
+        "--annot-filepath",
+        type=Path,
+        help="The absolute file path for the annotations file (e.g., '/path/to/video_name_annotations.npy').",
+    )
+    parser.add_argument(
+        "--images-dirpath",
+        type=Path,
+        help="The absolute path to the directory containing the image frames.",
+    )
+
+    args = parser.parse_args()
+
+    # Validate that all manual args are provided when --manual is used
+    if args.manual:
+        required_manual_args = ["errors_obs_id", "errors_csv_filepath", "masks_filepath", "annot_filepath", "images_dirpath"]
+        missing = [arg for arg in required_manual_args if getattr(args, arg) is None]
+        if missing:
+            parser.error(
+                f"--manual requires all of: --errors-obs-id, --errors-csv-filepath, --masks-filepath, --annot-filepath, --images-dirpath. "
+                f"Missing: {', '.join('--' + arg.replace('_', '-') for arg in missing)}"
+            )
+
+    return args
 
 
 class MultiBuilder:
     def __init__(
         self,
         errors_csv_filepath: Path,
-        obsId_to_folder_map: dict[ParsedObservationID, Path],
+        obsId_to_folder_map: dict[ParsedObservationID | ManualObservationID, Path],
         masks_path: Path,
         annot_path: Path,
         ignore_missing_observation_ids: bool = False,
@@ -61,7 +119,7 @@ class MultiBuilder:
         self.annot_path = annot_path
         self.ignore_missing_observation_ids = ignore_missing_observation_ids
 
-    def load_error_frames(self, obs_id: ParsedObservationID) -> list[int]:
+    def load_error_frames(self, obs_id: ParsedObservationID | ManualObservationID) -> list[int]:
         """ """
         errors_df = load_errors_df(self.errors_csv_filepath, obs_id)
         return extract_error_frames(errors_df)
@@ -73,7 +131,13 @@ class MultiBuilder:
         """
 
         for obs_id_object, images_path in self.obsId_to_folder_map.items():
-            print(f"* Checking existence of assets for video {obs_id_object.videoname}")
+            # Get display name for logging (supports both ParsedObservationID and ManualObservationID)
+            display_name = (
+                obs_id_object.videoname
+                if isinstance(obs_id_object, ParsedObservationID)
+                else obs_id_object.to_str()
+            )
+            print(f"* Checking existence of assets for video {display_name}")
 
             ############################################################################################################
             # Assert existence of images directory
@@ -86,7 +150,7 @@ class MultiBuilder:
             # Assert existence of annotations file
             ############################################################################################################
             assert find_annot(self.annot_path, obs_id_object) is not None, (
-                f"annotations file for video {obs_id_object.videoname} doesn't exist"
+                f"annotations file for {display_name} doesn't exist"
             )
             print(" - Found annotations file ")
 
@@ -94,7 +158,7 @@ class MultiBuilder:
             # Assert existence of masks file
             ############################################################################################################
             assert find_masks(self.masks_path, obs_id_object) is not None, (
-                f"masks file for video {obs_id_object.videoname} doesn't exist "
+                f"masks file for {display_name} doesn't exist "
             )
             print(" - Found masks file")
 
@@ -219,11 +283,84 @@ class MultiBuilder:
 
 if __name__ == "__main__":
     args = parse_args()
+
+    # Build obsId_to_folder_map based on mode
+    obsId_to_folder_map: dict[ParsedObservationID | ManualObservationID, Path]
+    if args.manual:
+
+        # Validate errors CSV file
+        if not args.errors_csv_filepath.is_absolute():
+            raise ValueError(
+                f"Errors CSV path must be absolute: {args.errors_csv_filepath}"
+            )
+        if not args.errors_csv_filepath.exists():
+            raise FileNotFoundError(
+                f"Errors CSV file not found: {args.errors_csv_filepath}"
+            )
+        if not args.errors_csv_filepath.is_file():
+            raise ValueError(
+                f"Errors CSV path is not a file: {args.errors_csv_filepath}"
+            )
+        errors_csv_filepath = args.errors_csv_filepath
+
+        # Validate masks file
+        if not args.masks_filepath.is_absolute():
+            raise ValueError(f"Masks file path must be absolute: {args.masks_filepath}")
+        if not args.masks_filepath.exists():
+            raise FileNotFoundError(f"Masks file not found: {args.masks_filepath}")
+        if not args.masks_filepath.is_file():
+            raise ValueError(f"Masks file path is not a file: {args.masks_filepath}")
+        masks_path = args.masks_filepath.parent
+
+        # Validate annotations file
+        if not args.annot_filepath.is_absolute():
+            raise ValueError(
+                f"Annotations file path must be absolute: {args.annot_filepath}"
+            )
+        if not args.annot_filepath.exists():
+            raise FileNotFoundError(
+                f"Annotations file not found: {args.annot_filepath}"
+            )
+        if not args.annot_filepath.is_file():
+            raise ValueError(
+                f"Annotations file path is not a file: {args.annot_filepath}"
+            )
+        annot_path = args.annot_filepath.parent
+
+        # Validate images directory
+        if not args.images_dirpath.is_absolute():
+            raise ValueError(
+                f"Images directory path must be absolute: {args.images_dirpath}"
+            )
+        if not args.images_dirpath.exists():
+            raise FileNotFoundError(
+                f"Images directory not found: {args.images_dirpath}"
+            )
+        if not args.images_dirpath.is_dir():
+            raise ValueError(
+                f"Images path is not a directory: {args.images_dirpath}"
+            )
+
+        # Create ManualObservationID from CLI arguments
+        manual_obs_id = ManualObservationID(
+            errors_obs_id=args.errors_obs_id,
+            masks_filename=args.masks_filepath.name,
+            annotations_filename=args.annot_filepath.name,
+        )
+        obsId_to_folder_map = {manual_obs_id: args.images_dirpath}
+
+    else:
+        # Use configuration from Config class
+        obsId_to_folder_map = Config.obsId_to_folder_map
+        errors_csv_filepath = Config.errors_csv_filepath
+        masks_path = Config.masks_path
+        annot_path = Config.annot_path
+
     mb = MultiBuilder(
-        Config.errors_csv_filepath,
-        Config.obsId_to_folder_map,
-        Config.masks_path,
-        Config.annot_path,
+        errors_csv_filepath,
+        obsId_to_folder_map,
+        masks_path,
+        annot_path,
         args.ignore_missing_observation_ids,
     )
     mb.verify_existence()

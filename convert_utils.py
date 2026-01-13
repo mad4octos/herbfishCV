@@ -19,7 +19,7 @@ from thefuzz import fuzz
 
 # Local imports
 from blob import BlobInfo
-from configuration import ParsedObservationID
+from configuration import ParsedObservationID, ManualObservationID
 
 # Type aliases for the masks file
 FrameIndex = int
@@ -181,7 +181,7 @@ def load_categories(
 
 
 def load_errors_df(
-    filepath: Path, observation_id: ParsedObservationID
+    filepath: Path, observation_id: ParsedObservationID | ManualObservationID
 ) -> Optional[pd.DataFrame]:
     """
     Load and extract the error entries associated with a specific observation.
@@ -194,8 +194,8 @@ def load_errors_df(
      ----------
      filepath : Path
          Path to the CSV file containing all recorded errors.
-     observation_id : ParsedObservationID
-         Parsed observation identifier used to locate the relevant subset of
+     observation_id : ParsedObservationID | ManualObservationID
+         Observation identifier used to locate the relevant subset of
          rows in the errors DataFrame.
 
      Returns
@@ -363,18 +363,36 @@ class ObservationIdSimilarity:
 
 
 def find_obsId_in_errors_file(
-    obs_id_object: ParsedObservationID, errors_df: pd.DataFrame
+    obs_id_object: ParsedObservationID | ManualObservationID, errors_df: pd.DataFrame
 ) -> pd.DataFrame | ObservationIdSimilarity:
     """
     Try multiple string formats of an observation ID to find a match in the
     errors CSV. If a match is found, return the matching rows. If no exact
     match is found, return a list of similarity scores between the generated
     obsID strings and all available obsIDs in the file.
+
+    For ManualObservationID: Uses the exact errors_obs_id without any format variations.
+    For ParsedObservationID: Tries multiple date formats and variations.
     """
     # To store the similarity score of each available obsID in the CSV
     # and return it if no match was found
     comparisons: dict[str, list[tuple[str, int]]] = defaultdict(list)
 
+    # Handle ManualObservationID - use exact string provided
+    if isinstance(obs_id_object, ManualObservationID):
+        obs_id_str = obs_id_object.errors_obs_id
+        matching_rows = errors_df[errors_df.obsID == obs_id_str]
+        if not matching_rows.empty:
+            return matching_rows
+
+        # If no exact match, compute similarities for error reporting
+        for available_obs_id in errors_df.obsID.unique():
+            score = fuzz.ratio(obs_id_str, available_obs_id)
+            comparisons[obs_id_str].append((available_obs_id, score))
+
+        return ObservationIdSimilarity(comparisons)
+
+    # Handle ParsedObservationID - try multiple format variations
     for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
         for has_token in (True, False):
             obs_id_str = obs_id_object.to_str(
@@ -397,11 +415,38 @@ def find_obsId_in_errors_file(
 
 
 def find_existing_file(
-    base_path: Path, obs_id_object: ParsedObservationID, suffix: str
+    base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID, suffix: str
 ) -> Optional[Path]:
-    """ """
+    """
+    Find a file with the given suffix for the observation ID.
 
+    For ManualObservationID: Uses specific obs_id based on suffix type.
+    For ParsedObservationID: Tries multiple format variations.
+    """
     checked_files = []
+
+    # Handle ManualObservationID - use exact string provided
+    if isinstance(obs_id_object, ManualObservationID):
+        # Determine which obs_id to use based on the suffix
+        if suffix == "_annotations.npy":
+            filename = obs_id_object.annotations_filename
+        elif suffix == "_masks.pkl":
+            filename = obs_id_object.masks_filename
+        else:
+            raise Exception("Unexpected suffix")
+
+        candidate = base_path / filename
+        checked_files.append(str(candidate))
+
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
+        print("Target file wasn't found, the following files were checked:")
+        for s in checked_files:
+            print(f" - '{s}'")
+        return None
+
+    # Handle ParsedObservationID - try multiple format variations
     for date_format in ["%m%d%Y", "%m-%d-%Y", "%m%d%y"]:
         for has_token in (True, False):
             obs_id_str = obs_id_object.to_str(
@@ -421,13 +466,13 @@ def find_existing_file(
     return None
 
 
-def find_annot(base_path: Path, obs_id_object: ParsedObservationID):
-    """"""
+def find_annot(base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID):
+    """Find annotations file for the given observation ID."""
     return find_existing_file(base_path, obs_id_object, "_annotations.npy")
 
 
-def find_masks(base_path: Path, obs_id_object: ParsedObservationID):
-    """"""
+def find_masks(base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID):
+    """Find masks file for the given observation ID."""
     return find_existing_file(base_path, obs_id_object, "_masks.pkl")
 
 
