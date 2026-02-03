@@ -61,6 +61,20 @@ Examples:
         help="Disable automatic mask cleaning (blob filters, classifier, anomaly detection). "
              "Only frames manually specified in the errors CSV will have their masks removed.",
     )
+    parser.add_argument(
+        "--extracted-fps",
+        type=int,
+        default=None,
+        help="FPS at which frames were originally extracted from the video. "
+        "Used together with --final-fps to subsample frames.",
+    )
+    parser.add_argument(
+        "--final-fps",
+        type=int,
+        default=None,
+        help="Desired FPS for the output dataset. "
+        "Used together with --extracted-fps to subsample frames (e.g., --extracted-fps 30 --final-fps 10 keeps every 3rd frame).",
+    )
 
     # Manual observation ID arguments
     parser.add_argument(
@@ -96,6 +110,15 @@ Examples:
 
     args = parser.parse_args()
 
+    # Validate FPS arguments: both must be provided together
+    if (args.extracted_fps is None) != (args.final_fps is None):
+        parser.error("--extracted-fps and --final-fps must be used together.")
+    if args.extracted_fps is not None:
+        if (args.extracted_fps <= 0) or (args.final_fps <= 0):
+            parser.error("--extracted-fps and --final-fps must be positive integers.")
+        if args.final_fps > args.extracted_fps:
+            parser.error("--final-fps cannot be greater than --extracted-fps.")
+
     # Validate that all manual args are provided when --manual is used
     if args.manual:
         required_manual_args = ["errors_obs_id", "errors_csv_filepath", "masks_filepath", "annot_filepath", "images_dirpath"]
@@ -118,6 +141,8 @@ class MultiBuilder:
         annot_path: Path,
         ignore_missing_observation_ids: bool = False,
         no_auto: bool = False,
+        extracted_fps: int | None = None,
+        final_fps: int | None = None,
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
@@ -126,6 +151,8 @@ class MultiBuilder:
         self.annot_path = annot_path
         self.ignore_missing_observation_ids = ignore_missing_observation_ids
         self.no_auto = no_auto
+        self.extracted_fps = extracted_fps
+        self.final_fps = final_fps
 
     def load_error_frames(self, obs_id: ParsedObservationID | ManualObservationID) -> list[int]:
         """ """
@@ -210,6 +237,8 @@ class MultiBuilder:
                     obsId_error_frames,
                     output_path / obs_id_str,
                     no_auto=self.no_auto,
+                    extracted_fps=self.extracted_fps,
+                    final_fps=self.final_fps,
                 )
                 pbar.update(1)
 
@@ -227,6 +256,8 @@ class MultiBuilder:
         obsId_error_frames: list[int],
         export_root_path: Path,
         no_auto: bool = False,
+        extracted_fps: int | None = None,
+        final_fps: int | None = None,
     ):
         """ """
         print(f"Creating job for observation '{obs_id}'")
@@ -271,6 +302,8 @@ class MultiBuilder:
                 notebook_debug=False,
                 window_size=Config.window_size,
                 no_auto=no_auto,
+                extracted_fps=extracted_fps,
+                final_fps=final_fps,
             )
             dataset = builder.build()
 
@@ -374,6 +407,8 @@ if __name__ == "__main__":
         annot_path,
         args.ignore_missing_observation_ids,
         no_auto=args.no_auto,
+        extracted_fps=args.extracted_fps,
+        final_fps=args.final_fps,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)

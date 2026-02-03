@@ -65,6 +65,15 @@ pip install -r requirements.txt
       python multi_dataset_builder.py --ignore-missing-observation-ids
       ```
 
+    - `--extracted-fps` and `--final-fps` — Control frame subsampling by specifying the FPS at which frames were extracted and the desired output FPS. Both must be provided together. When omitted, all frames are processed.
+      ```bash
+      # Keep every 3rd frame (30fps extracted, 10fps desired)
+      python multi_dataset_builder.py --extracted-fps 30 --final-fps 10
+
+      # Keep every 6th frame (30fps extracted, 5fps desired)
+      python multi_dataset_builder.py --extracted-fps 30 --final-fps 5
+      ```
+
 ### Observation ID Naming Conventions (Stationary Project)
 
 The stationary project uses `ParsedObservationID` to automatically format observation IDs from constituent parts. Below are the naming conventions used across different file types.

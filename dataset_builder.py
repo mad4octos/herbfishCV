@@ -58,6 +58,8 @@ class DatumaroDatasetBuilder:
         verbose: bool = False,
         notebook_debug=False,
         no_auto: bool = False,
+        extracted_fps: int | None = None,
+        final_fps: int | None = None,
         video_fps: int = 2,
         video_height: int = 2160,
         video_width: int = 3840,
@@ -67,6 +69,12 @@ class DatumaroDatasetBuilder:
         self.obs_id = obs_id
         self.masks = masks
         self.error_frames = error_frames
+
+        # Frame subsampling: if both FPS values are provided, compute the step
+        if (extracted_fps is not None) and (final_fps is not None):
+            self.frame_step = extracted_fps // final_fps
+        else:
+            self.frame_step = None
         self.chunked_df = chunked_df
         self.label_categories = label_categories
         self.images_path = Path(images_path)
@@ -219,6 +227,16 @@ class DatumaroDatasetBuilder:
         frame_masks : dict
             Dictionary mapping object IDs to sparse tensor masks.
         """
+
+        # Subsample frames based on extracted_fps / final_fps ratio
+        if (self.frame_step is not None) and (
+            (extracted_frame_idx % self.frame_step) != 0
+        ):
+            self.logger.info(
+                f"Skipping frame {extracted_frame_idx} (keeping every {self.frame_step}th frame)"
+            )
+            return
+        
         self.logger.info(f"Processing frame {extracted_frame_idx}...")
 
         if extracted_frame_idx in self.error_frames:
