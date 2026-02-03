@@ -74,6 +74,10 @@ pip install -r requirements.txt
       python multi_dataset_builder.py --extracted-fps 30 --final-fps 5
       ```
 
+**Prefixed image filenames:**
+
+Image files with prefixes (e.g., `left_0001.jpg`, `cam1_0001.jpg`) are supported automatically. When loading a frame, the system first tries an exact filename match (e.g., `0001.jpg`). If not found, it searches for any file ending with the expected filename (e.g., `*0001.jpg`) and uses the first match. Non-prefixed filenames continue to work as before. The expected filename is constructed using the `number_of_zeros` setting in `configuration.py` (e.g., 5 produces `00001.jpg`, 4 produces `0001.jpg`).
+
 ### Observation ID Naming Conventions (Stationary Project)
 
 The stationary project uses `ParsedObservationID` to automatically format observation IDs from constituent parts. Below are the naming conventions used across different file types.
@@ -139,6 +143,7 @@ python multi_dataset_builder.py --manual \
 - The `Config` class:
   - Defines the relative paths towards the annotations, masks and errors files.
   - Has the `obsId_to_folder_map` where observations of interest are defined. Each `ParsedObservationID : <path>` pair defines the observation of interest and its location on disk (the ParsedObservationID class is used to input the constituent fields of the ObservationID, and it's used to test different versions of the ObservationID string).
+  - Has a `number_of_zeros` field that controls the zero-padding width used when constructing frame filenames (e.g., 5 → `00001.jpg`, 4 → `0001.jpg`). Use 4 for focal follow data and 5 for stationary data.
   - Has an `anomaly_rules` field, where all the anomaly rules acting on the timeseries of blobs properties are defined.
 
 - The `ClassifierConfig` class:
