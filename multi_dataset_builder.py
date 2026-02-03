@@ -55,6 +55,12 @@ Examples:
         action="store_true",
         help="Do not stop execution when an observation ID is missing from SAM2_errors.csv.",
     )
+    parser.add_argument(
+        "--no-auto",
+        action="store_true",
+        help="Disable automatic mask cleaning (blob filters, classifier, anomaly detection). "
+             "Only frames manually specified in the errors CSV will have their masks removed.",
+    )
 
     # Manual observation ID arguments
     parser.add_argument(
@@ -111,6 +117,7 @@ class MultiBuilder:
         masks_path: Path,
         annot_path: Path,
         ignore_missing_observation_ids: bool = False,
+        no_auto: bool = False,
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
@@ -118,6 +125,7 @@ class MultiBuilder:
         self.masks_path = masks_path
         self.annot_path = annot_path
         self.ignore_missing_observation_ids = ignore_missing_observation_ids
+        self.no_auto = no_auto
 
     def load_error_frames(self, obs_id: ParsedObservationID | ManualObservationID) -> list[int]:
         """ """
@@ -201,6 +209,7 @@ class MultiBuilder:
                     annot_filepath,
                     obsId_error_frames,
                     output_path / obs_id_str,
+                    no_auto=self.no_auto,
                 )
                 pbar.update(1)
 
@@ -217,6 +226,7 @@ class MultiBuilder:
         annot_filepath: Path,
         obsId_error_frames: list[int],
         export_root_path: Path,
+        no_auto: bool = False,
     ):
         """ """
         print(f"Creating job for observation '{obs_id}'")
@@ -260,6 +270,7 @@ class MultiBuilder:
                 verbose=False,
                 notebook_debug=False,
                 window_size=Config.window_size,
+                no_auto=no_auto,
             )
             dataset = builder.build()
 
@@ -362,6 +373,7 @@ if __name__ == "__main__":
         masks_path,
         annot_path,
         args.ignore_missing_observation_ids,
+        no_auto=args.no_auto,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)
