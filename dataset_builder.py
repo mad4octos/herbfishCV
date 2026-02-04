@@ -57,6 +57,7 @@ class DatumaroDatasetBuilder:
         max_frames=None,
         verbose: bool = False,
         notebook_debug=False,
+        no_auto: bool = False,
         video_fps: int = 2,
         video_height: int = 2160,
         video_width: int = 3840,
@@ -80,6 +81,7 @@ class DatumaroDatasetBuilder:
         self.count_empty_instance_masks = 0
         self.count_frames_with_errors = 0
         self.notebook_debug = notebook_debug
+        self.no_auto = no_auto
         self.target_class = target_class
         self.max_frames = max_frames
         self.start_frame = start_frame
@@ -165,6 +167,9 @@ class DatumaroDatasetBuilder:
         datumaro.components.dataset.Dataset
             A Datumaro Dataset object containing DatasetItems with bounding box annotations.
         """
+        if self.no_auto:
+            self.logger.info("--no-auto: skipping automatic mask cleaning (blob filters, classifier, anomaly detection).")
+
         if not self.error_frames:
             self.logger.warning(
                 "No CSV frame errors will be used because none were found!"
@@ -269,7 +274,12 @@ class DatumaroDatasetBuilder:
         self, input_image: np.ndarray, frame_masks: dict, extracted_frame_idx: int
     ) -> list[BlobInfo]:
         """
-        Extract bounding boxes from frame masks.
+        Extract blobs from frame masks, optionally applying automatic cleaning.
+
+        When ``self.no_auto`` is False (default), each mask goes through blob
+        filtering (area/size rules), YOLO classification, and anomaly detection
+        before being accepted. When ``self.no_auto`` is True, all non-empty
+        masks are accepted as-is, keeping only the largest blob per object.
         """
         original_image = input_image.copy()
 
@@ -282,51 +292,67 @@ class DatumaroDatasetBuilder:
             # Binary masks
             dense_object_mask = sparse_mask_tensor_to_dense_numpy(sparse_object_mask)
 
-            # Filter blob by basic featurs like area and size, to remove small blobs
-            # TODO: maybe return blobs first and then filter
-            filtered_blobs = self._get_filtered_blobs(
-                dense_object_mask, obj_id, extracted_frame_idx
-            )
-
-            # Generate image crops based on blobs data
-            blob_patches = self._get_blob_patches(
-                original_image, filtered_blobs, do_mask=True
-            )
-
-            # Filter blobs with a classifier, only correctly masked fish will be preserved
-            classified_blobs = self._classify_blobs(filtered_blobs, blob_patches)
-
-            if classified_blobs:
-                # Preserve the largest blob
-                dominant_blob = max(classified_blobs, key=lambda b: b.area)
-
-                # Compute other properties
-                dominant_blob.compute_solidity()
-                dominant_blob.compute_extent()
-                dominant_blob.compute_compactness()
-
-                self.tracker_manager.update(dominant_blob)
-                results = self.tracker_manager.predict(obj_id)
-
-                # NOTE:
-                # - a white box and label with an ID indicate this blob has not been rejected
-                # - a red label with a red rectangle indicates the blob has been rejected by the anomaly detector
-                # - no label indicates the blob was not processed by the anomaly detector and will be included in the
-                #   output dataset
-
-                if results["anomalies"]:
-                    # Draw a red rectangle and information regarding why a mask was rejected
-                    anomalies = ",".join(
-                        [f"{a['type']}({a['value']})" for a in results["anomalies"]]
-                    )
-                    self.draw_bbox_and_id(
-                        input_image, dominant_blob, "red", extra_text=f"({anomalies}"
-                    )
-
-                else:
-                    # Draw a green box and label with the Object ID indicating that this blob has not been rejected
+            if self.no_auto:
+                # Skip automatic cleaning: no blob filtering, classification, or anomaly detection.
+                # Just extract all blobs and keep the largest one per object.
+                raw_blobs = list(get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx))
+                if raw_blobs:
+                    dominant_blob = max(raw_blobs, key=lambda b: b.area)
                     self.draw_bbox_and_id(input_image, dominant_blob, "white")
                     all_blobs.append(dominant_blob)
+            else:
+                # Filter blob by basic featurs like area and size, to remove small blobs
+                # TODO: maybe return blobs first and then filter
+                filtered_blobs = self._get_filtered_blobs(
+                    dense_object_mask, obj_id, extracted_frame_idx
+                )
+
+                # Generate image crops based on blobs data
+                # FIXME: to extract patch into blob, set do_mask to False
+                blob_patches = self._get_blob_patches(
+                    original_image, filtered_blobs, do_mask=True
+                )
+
+                # Filter blobs with a classifier, only correctly masked fish will be preserved
+                classified_blobs = self._classify_blobs(filtered_blobs, blob_patches)
+
+                # FIXME: debug only!
+                # for blob, masked_patch in zip(filtered_blobs, blob_patches):
+                #    blob.patch = masked_patch
+
+                if classified_blobs:
+                    # Preserve the largest blob
+                    dominant_blob = max(classified_blobs, key=lambda b: b.area)
+
+                    # Compute other properties
+                    dominant_blob.compute_solidity()
+                    dominant_blob.compute_extent()
+                    dominant_blob.compute_compactness()
+                    # dominant_blob.compute_convexity_defects()
+                    # dominant_blob.save_crop_and_mask()
+
+                    self.tracker_manager.update(dominant_blob)
+                    results = self.tracker_manager.predict(obj_id)
+
+                    # NOTE:
+                    # - a white box and label with an ID indicate this blob has not been rejected
+                    # - a red label with a red rectangle indicates the blob has been rejected by the anomaly detector
+                    # - no label indicates the blob was not processed by the anomaly detector and will be included in the
+                    #   output dataset
+
+                    if results["anomalies"]:
+                        # Draw a red rectangle and information regarding why a mask was rejected
+                        anomalies = ",".join(
+                            [f"{a['type']}({a['value']})" for a in results["anomalies"]]
+                        )
+                        self.draw_bbox_and_id(
+                            input_image, dominant_blob, "red", extra_text=f"({anomalies}"
+                        )
+
+                    else:
+                        # Draw a green box and label with the Object ID indicating that this blob has not been rejected
+                        self.draw_bbox_and_id(input_image, dominant_blob, "white")
+                        all_blobs.append(dominant_blob)
 
             input_image = draw_mask_overlay(
                 input_image,

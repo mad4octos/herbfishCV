@@ -53,6 +53,18 @@ pip install -r requirements.txt
     - Export the filtered object detection bounding boxes into CVAT XML and Ultralytics YOLO (object-detection) formats. 
     - Export a video for debug, to be found in the `Config.output_path` folder corresponding for the current ObservationID.
 
+    **Optional flags:**
+
+    - `--no-auto` — Disable automatic mask cleaning (blob filters, classifier, anomaly detection). When this flag is passed, only frames manually specified in the errors CSV will have their masks removed; all other masks are accepted as-is, keeping only the largest blob per object.
+      ```bash
+      python multi_dataset_builder.py --no-auto
+      ```
+
+    - `--ignore-missing-observation-ids` — Do not stop execution when an observation ID is missing from `SAM2_errors.csv`.
+      ```bash
+      python multi_dataset_builder.py --ignore-missing-observation-ids
+      ```
+
 ### Observation ID Naming Conventions (Stationary Project)
 
 The stationary project uses `ParsedObservationID` to automatically format observation IDs from constituent parts. Below are the naming conventions used across different file types.
