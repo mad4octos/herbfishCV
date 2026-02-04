@@ -200,9 +200,11 @@ class DatumaroDatasetBuilder:
 
             try:
                 self._process_frame(extracted_frame_idx, frame_masks)
-            except FileNotFoundError:
+            except (FileNotFoundError, IOError):
                 self.video_writer.release()
-                self.logger.exception("Stopping due to exception.")
+                self.logger.exception(
+                    f"Stopping: failed to load image for frame {extracted_frame_idx}."
+                )
                 raise
 
         dataset = datumaro.components.dataset.Dataset.from_iterable(
@@ -248,10 +250,22 @@ class DatumaroDatasetBuilder:
 
         filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
         image_filepath = self.images_path / filename
+        if not image_filepath.exists():
+            # look for any file that ends with the expected filename
+            matches = list(self.images_path.glob(f"*{filename}"))
+            if not matches:
+                error_message = (
+                    f"File '{image_filepath}' doesn't exist, and no prefixed"
+                    f" variants matching '*{filename}' were found!"
+                )
+                raise FileNotFoundError(error_message)
+            image_filepath = matches[0]  # take the first match
         input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
         if input_image is None:
-            error_message = f"File '{image_filepath}' doesn't exist!"
-            raise FileNotFoundError(error_message)
+            error_message = (
+                f"File '{image_filepath}' exists but cannot be read as an image."
+            )
+            raise IOError(error_message)
 
         # FIXME: too much functionality inside here
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
