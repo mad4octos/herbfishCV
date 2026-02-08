@@ -48,6 +48,9 @@ Examples:
       --masks-filepath "/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_mask.pkl" \\
       --annot-filepath "/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy" \\
       --images-dirpath "/path/to/images/MH_JM_060724_152_L"
+
+  python multi_dataset_builder.py \\
+      --original-fps 23.997 --extracted-fps 3 --final-fps 1 --sam2-start 100
         """
     )
     parser.add_argument(
@@ -65,7 +68,7 @@ Examples:
         "--extracted-fps",
         type=int,
         default=None,
-        help="FPS at which frames were originally extracted from the video. "
+        help="FPS at which frames were extracted from the video by ffmpeg. "
         "Used together with --final-fps to subsample frames.",
     )
     parser.add_argument(
@@ -73,7 +76,24 @@ Examples:
         type=int,
         default=None,
         help="Desired FPS for the output dataset. "
-        "Used together with --extracted-fps to subsample frames (e.g., --extracted-fps 30 --final-fps 10 keeps every 3rd frame).",
+        "Used together with --extracted-fps to subsample frames (e.g., --extracted-fps 3 --final-fps 1 keeps every 3rd frame).",
+    )
+    parser.add_argument(
+        "--original-fps",
+        type=float,
+        default=None,
+        help="Native frame rate of the original video (before ffmpeg extraction). "
+        "The frame numbers in the .npy annotations file are in this FPS space. "
+        "Used together with --extracted-fps and --sam2-start to map extracted frame numbers "
+        "back to original video frame numbers for annotation lookup.",
+    )
+    parser.add_argument(
+        "--sam2-start",
+        type=int,
+        default=None,
+        help="Zero-indexed frame number in the original video from which ffmpeg began extracting frames. "
+        "Used together with --original-fps and --extracted-fps to map extracted frame numbers "
+        "back to original video frame numbers for annotation lookup.",
     )
 
     # Manual observation ID arguments
@@ -119,6 +139,19 @@ Examples:
         if args.final_fps > args.extracted_fps:
             parser.error("--final-fps cannot be greater than --extracted-fps.")
 
+    # Validate original-fps / sam2-start: both must be provided together, and require --extracted-fps
+    if (args.original_fps is None) != (args.sam2_start is None):
+        parser.error("--original-fps and --sam2-start must be used together.")
+    if args.original_fps is not None:
+        if args.original_fps <= 0:
+            parser.error("--original-fps must be a positive number.")
+        if args.sam2_start < 0:
+            parser.error("--sam2-start must be a non-negative integer.")
+        if args.extracted_fps is None:
+            parser.error(
+                "--original-fps and --sam2-start require --extracted-fps (and --final-fps) to be set."
+            )
+
     # Validate that all manual args are provided when --manual is used
     if args.manual:
         required_manual_args = ["errors_obs_id", "errors_csv_filepath", "masks_filepath", "annot_filepath", "images_dirpath"]
@@ -143,6 +176,8 @@ class MultiBuilder:
         no_auto: bool = False,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
+        original_fps: float | None = None,
+        sam2_start: int | None = None,
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
@@ -153,6 +188,8 @@ class MultiBuilder:
         self.no_auto = no_auto
         self.extracted_fps = extracted_fps
         self.final_fps = final_fps
+        self.original_fps = original_fps
+        self.sam2_start = sam2_start
 
     def load_error_frames(self, obs_id: ParsedObservationID | ManualObservationID) -> list[int]:
         """ """
@@ -239,6 +276,8 @@ class MultiBuilder:
                     no_auto=self.no_auto,
                     extracted_fps=self.extracted_fps,
                     final_fps=self.final_fps,
+                    original_fps=self.original_fps,
+                    sam2_start=self.sam2_start,
                 )
                 pbar.update(1)
 
@@ -258,6 +297,8 @@ class MultiBuilder:
         no_auto: bool = False,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
+        original_fps: float | None = None,
+        sam2_start: int | None = None,
     ):
         """ """
         print(f"Creating job for observation '{obs_id}'")
@@ -287,6 +328,7 @@ class MultiBuilder:
                 masks=masks,
                 error_frames=obsId_error_frames,
                 chunked_df=chunked_df,
+                annotations_df=annotations_df,
                 label_categories=label_categories,
                 images_path=images_path,
                 export_root_path=run_dir,
@@ -304,6 +346,8 @@ class MultiBuilder:
                 no_auto=no_auto,
                 extracted_fps=extracted_fps,
                 final_fps=final_fps,
+                original_fps=original_fps,
+                sam2_start=sam2_start,
             )
             dataset = builder.build()
 
@@ -409,6 +453,8 @@ if __name__ == "__main__":
         no_auto=args.no_auto,
         extracted_fps=args.extracted_fps,
         final_fps=args.final_fps,
+        original_fps=args.original_fps,
+        sam2_start=args.sam2_start,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)
