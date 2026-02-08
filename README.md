@@ -150,6 +150,16 @@ python multi_dataset_builder.py --manual \
     --images-dirpath "/path/to/JM_060724"
 ```
 
+### Indexing Conventions
+
+| Data source                  | Indexing |
+|------------------------------|----------|
+| Annotations (`.npy` file)   | 0-indexed |
+| Masks (`.pkl` file)         | 0-indexed |
+| Errors CSV                   | 0-indexed |
+| Image filenames              | 1-indexed |
+| Image IDs in COCO annotations | 1-indexed |
+
 ### `configuration.py` explanation
 
 - The `Config` class:
