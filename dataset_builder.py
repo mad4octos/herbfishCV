@@ -41,6 +41,7 @@ class DatumaroDatasetBuilder:
         masks: dict,
         error_frames: list[int],
         chunked_df: pd.DataFrame,
+        annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         images_path: Path,
         export_root_path: Path,
@@ -60,6 +61,8 @@ class DatumaroDatasetBuilder:
         no_auto: bool = False,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
+        original_fps: float | None = None,
+        sam2_start: int | None = None,
         video_fps: int = 2,
         video_height: int = 2160,
         video_width: int = 3840,
@@ -75,7 +78,16 @@ class DatumaroDatasetBuilder:
             self.frame_step = extracted_fps // final_fps
         else:
             self.frame_step = None
+
+        # Original-video frame mapping: used to convert extracted frame numbers
+        # back to the original video frame space (as seen in .npy annotations).
+        # Formula: original_frame_number = extracted_frame_number * (original_fps / extracted_fps) + sam2_start
+        self.original_fps = original_fps
+        self.extracted_fps = extracted_fps
+        self.sam2_start = sam2_start
+
         self.chunked_df = chunked_df
+        self.annotations_df = annotations_df
         self.label_categories = label_categories
         self.images_path = Path(images_path)
         self.export_root_path = export_root_path
@@ -100,6 +112,96 @@ class DatumaroDatasetBuilder:
             self.anomaly_rules, logger=self.logger, window_size=window_size
         )
         self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
+
+    def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
+        """
+        Map an extracted frame index back to the original video frame number.
+
+        The .npy annotation file stores frame numbers in the original video's
+        FPS space.  This method inverts the extraction formula:
+
+            extracted_frame_number = (original_frame_number - sam2_start) / (original_fps / extracted_fps)
+
+        to recover:
+
+            original_frame_number = extracted_frame_number * (original_fps / extracted_fps) + sam2_start
+
+        Returns None when the mapping parameters (--original-fps, --sam2-start)
+        were not provided.
+        """
+        if (
+            self.original_fps is None
+            or self.sam2_start is None
+            or self.extracted_fps is None
+        ):
+            return None
+        return int(
+            extracted_frame_idx * (self.original_fps / self.extracted_fps)
+            + self.sam2_start
+        )
+
+    def original_to_extracted_frame(self, original_frame_idx: int) -> int | None:
+        """
+        Map an original video frame number to the extracted frame index.
+
+        Applies the extraction formula:
+
+            extracted_frame_number = (original_frame_number - sam2_start) / (original_fps / extracted_fps)
+
+        Returns None when the mapping parameters (--original-fps, --sam2-start)
+        were not provided.
+        """
+        if (
+            self.original_fps is None
+            or self.sam2_start is None
+            or self.extracted_fps is None
+        ):
+            return None
+        return int(
+            (original_frame_idx - self.sam2_start)
+            / (self.original_fps / self.extracted_fps)
+        )
+
+    def get_closest_gt_location(
+        self, extracted_frame_idx: int, obj_id: int
+    ) -> tuple[list[float], str, int, int] | None:
+        """
+        Look up the closest ground-truth location for a given object at an extracted frame.
+
+        Convert the extracted frame index (0-indexed) to the original video frame space,
+        then finds the annotation row for this ObjID whose Frame is closest.
+
+        Return the [x, y] location list, or None when the mapping parameters
+        were not provided or no annotation exists for the given ObjID.
+        """
+        original_frame = self.extracted_to_original_frame(extracted_frame_idx)
+        if original_frame is None:
+            return None
+
+        obj_rows = self.annotations_df[
+            (self.annotations_df["ObjID"] == str(obj_id))
+            & (self.annotations_df["ClickType"] == 1)
+        ]
+        if obj_rows.empty:
+            return None
+
+        # Find the row with the closest Frame value to the computed original frame.
+        # (obj_rows["Frame"] - original_frame) gives the signed difference for each row,
+        # .abs() makes them all positive distances, and .idxmin() returns the DataFrame
+        # index of the row with the smallest distance.
+        closest_idx = (obj_rows["Frame"] - original_frame).abs().idxmin()
+        
+        gt_location: list[float] = obj_rows.loc[closest_idx, "Location"]
+
+        gt_obj_id: str = obj_rows.loc[closest_idx, "ObjID"]
+
+        # Original frame number space
+        gt_frame_original: int = obj_rows.loc[closest_idx, "Frame"]
+
+        # Extracted frame number
+        gt_frame_extracted = self.original_to_extracted_frame(gt_frame_original)
+
+        return gt_location, gt_obj_id, gt_frame_extracted, gt_frame_original
 
     def create_video_writer(self, fps: int, height: int, width: int):
         """ """
@@ -494,11 +596,20 @@ class DatumaroDatasetBuilder:
             uncompressed_rle = mask_tools.to_uncompressed_rle(
                 compressed_rle, width=blob.w, height=blob.h
             )
+            attributes: dict[str, int | list[float] | str] = {"ObjID": blob.obj_id}
+            gt = self.get_closest_gt_location(blob.frame_idx, blob.obj_id)
+            if gt is not None:
+                gt_location, gt_obj_id, gt_frame_extracted, gt_frame_original = gt
+                attributes["gt_location"] = gt_location
+                attributes["gt_obj_id"] = gt_obj_id
+                attributes["gt_frame_extracted"] = gt_frame_extracted
+                attributes["gt_frame_original"] = gt_frame_original
+
             output.append(
                 RleMask(
                     rle=uncompressed_rle,
                     label=label_id,
-                    attributes={"ObjID": blob.obj_id},
+                    attributes=attributes,
                 )
             )
 

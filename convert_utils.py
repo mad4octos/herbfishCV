@@ -158,11 +158,22 @@ def load_annotations(annotations_filepath: Path):
     annotations_df["ClickType"] = annotations_df["ClickType"].astype(int)
     annotations_df["Frame"] = annotations_df["Frame"].astype(int)
 
+    def _parse_location(raw_location):
+        """Convert Location from ndarray (as stored in .npy) to list[float]"""
+        if isinstance(raw_location, (np.ndarray, list, tuple)):
+            return [float(x) for x in raw_location]
+        elif isinstance(raw_location, str):
+            # Fallback, parse string representation, e.g. "[2503.934, 1143.529]"
+            return [float(x) for x in raw_location.strip("[] ").split(",")]
+        else:
+            return None
+
+    annotations_df["Location"] = annotations_df["Location"].apply(_parse_location)
     annotations_df = annotations_df.sort_values(by=["Frame"]).reset_index(drop=True)
 
-    # Clean trailing whitespaces from all string columns
-    for col in annotations_df.columns:
-        if annotations_df[col].dtype == "object":
+    # Clean trailing whitespaces from ObjType and ObjID columns
+    for col in ["ObjType", "ObjID"]:
+        if col in annotations_df.columns and annotations_df[col].dtype == "object":
             annotations_df[col] = annotations_df[col].str.strip()
 
     print("Annotations loaded correctly!")

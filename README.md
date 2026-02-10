@@ -74,6 +74,18 @@ pip install -r requirements.txt
       python multi_dataset_builder.py --extracted-fps 30 --final-fps 5
       ```
 
+    - `--original-fps` and `--sam2-start` — Attach ground-truth annotation data to exported COCO annotations. These flags map extracted frame indices back to the original video frame numbers (as stored in the `.npy` annotations), then look up the closest known annotation location for each object mask. Both must be provided together, and require `--extracted-fps` (and `--final-fps`).
+      - `--original-fps`: Native frame rate of the original video (before ffmpeg extraction).
+      - `--sam2-start`: Zero-indexed frame number in the original video from which ffmpeg began extracting frames.
+
+      Each exported annotation will include `gt_location`, `gt_obj_id`, `gt_frame_original`, and `gt_frame_extracted` attributes.
+
+      ```bash
+      python multi_dataset_builder.py \
+          --extracted-fps 3 --final-fps 1 \
+          --original-fps 23.997 --sam2-start 100
+      ```
+
 **Prefixed image filenames:**
 
 Image files with prefixes (e.g., `left_0001.jpg`, `cam1_0001.jpg`) are supported automatically. When loading a frame, the system first tries an exact filename match (e.g., `0001.jpg`). If not found, it searches for any file ending with the expected filename (e.g., `*0001.jpg`) and uses the first match. Non-prefixed filenames continue to work as before. The expected filename is constructed using the `number_of_zeros` setting in `configuration.py` (e.g., 5 produces `00001.jpg`, 4 produces `0001.jpg`).
@@ -137,6 +149,16 @@ python multi_dataset_builder.py --manual \
     --annot-filepath="/path/to/CR_JM_060724_152_playa_largu_scuba_TPScv_L_annotations.npy" \
     --images-dirpath "/path/to/JM_060724"
 ```
+
+### Indexing Conventions
+
+| Data source                  | Indexing |
+|------------------------------|----------|
+| Annotations (`.npy` file)   | 0-indexed |
+| Masks (`.pkl` file)         | 0-indexed |
+| Errors CSV                   | 0-indexed |
+| Image filenames              | 1-indexed |
+| Image IDs in COCO annotations | 1-indexed |
 
 ### `configuration.py` explanation
 
