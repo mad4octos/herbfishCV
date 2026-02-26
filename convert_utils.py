@@ -235,7 +235,11 @@ def load_errors_df(
         return observations_errors
 
 
-def extract_error_frames(video_errors_df: Optional[pd.DataFrame]) -> list[int]:
+def extract_error_frames(
+    video_errors_df: Optional[pd.DataFrame],
+    include_end: bool = True,
+    error_type: list | str | None = None,
+) -> list[int]:
     """
     Extract all unique frame indices that fall within mistaken frame ranges.
 
@@ -244,16 +248,24 @@ def extract_error_frames(video_errors_df: Optional[pd.DataFrame]) -> list[int]:
 
     Returns:
         list[int]: Sorted list of unique frame indices containing errors.
+        include_end: Whether to include or not the frame at mistaken_frame_end
     """
     if video_errors_df is None:
         return []
+
+    # If an error_type of interest is provided, keep rows with such error_type
+    if error_type is not None:
+        error_type = list(error_type)
+        video_errors_df = video_errors_df.loc[
+            video_errors_df.error_type.isin(error_type)
+        ]
 
     all_error_frames = []
 
     for _, row in video_errors_df.iterrows():
         start_frame = int(row["mistaken_frame_start"])
-        end_frame = int(row["mistaken_frame_end"])
-        error_frames_in_row = list(range(start_frame, end_frame + 1))
+        end_frame = int(row["mistaken_frame_end"]) + (1 if include_end else 0)
+        error_frames_in_row = list(range(start_frame, end_frame))
         all_error_frames.extend(error_frames_in_row)
 
     unique_error_frames = sorted(set(all_error_frames))
