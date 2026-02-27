@@ -7,8 +7,11 @@ annotated errors CSV.
 """
 
 # Standard Library imports
+import sys
 import argparse
 from pathlib import Path
+
+sys.path.append("..")
 
 # External imports
 import cv2
