@@ -46,6 +46,14 @@ class BlobInfo:
         """Return the axis-aligned crop of the input image covering the blob bbox."""
         return image[self.y : self.y + self.h, self.x : self.x + self.w]
 
+    def crop_blob_rgba(self, image: np.ndarray) -> np.ndarray:
+        """Crop the blob and return a 4-channel RGBA image where the alpha channel is the blob mask."""
+        crop = self.crop_from_image(np.copy(image))
+        dense_mask = self.get_dense_mask()
+        mask_crop = self.crop_from_image(dense_mask)
+        alpha = ((mask_crop == self.blob_num) * 255).astype(np.uint8)
+        return np.dstack([crop, alpha])
+
     def mask_and_crop_blob(
         self, image: np.ndarray, remove_background=True, overlay_alpha=0.2
     ):
