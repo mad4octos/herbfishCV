@@ -18,6 +18,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import torch
 from tqdm import tqdm
 
 # Local imports
@@ -31,6 +32,9 @@ from convert_utils import (
     get_blobs_from_mask,
     load_masks,
 )
+
+torch.set_num_threads(1)
+
 
 # Constants
 CLASS_CORRECT = "correct"
