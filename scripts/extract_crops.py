@@ -229,9 +229,9 @@ def main(
         if dir_path.exists() and any(dir_path.iterdir()):
             raise ValueError(f"Destination directory '{dir_path}' is not empty")
 
-    if (not incorrect_frames) or (not correct_frames):
+    if not correct_frames:
         raise ValueError(
-            "Correct/Incorrect frames must be provided to distinguish correct from incorrect blobs."
+            "At least one correct frame must be provided. Incorrect frames are optional."
         )
 
     logger.info(f"Loading masks from '{masks_filepath.absolute()}'")
