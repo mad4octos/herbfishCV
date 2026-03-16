@@ -41,8 +41,7 @@ for _, row in df.iterrows():
         "--errors-obs-id",
         obs_id,
         "--output-folder",
-        OUTPUT_FOLDER,
-        "--overlay"
+        OUTPUT_FOLDER
     ]
 
     # print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
