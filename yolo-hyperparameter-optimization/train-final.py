@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # train_final.py
-from ultralytics import YOLO
 import yaml
+from ultralytics import YOLO
 
 # Path to your model and data
 MODEL_PATH = "/home/gamerock/scythe1/yolov12n.pt"
@@ -9,7 +9,7 @@ DATA_PATH = "/home/gamerock/scythe1/datasets/2025_1_98_manual/data.yaml"
 DEVICE = "0"
 
 # Load hyperparameters from YAML
-with open('best_hyperparameters.yaml', 'r') as f:
+with open("best_hyperparameters.yaml", "r") as f:
     hyp = yaml.safe_load(f)
 
 print("Loaded hyperparameters:")
@@ -27,8 +27,8 @@ model.train(
     epochs=100,
     imgsz=640,
     device=DEVICE,
-    project='./final_model',
-    **hyp  # Unpack hyperparameters as keyword arguments
+    project="./final_model",
+    **hyp,  # Unpack hyperparameters as keyword arguments
 )
 
 print("\nTraining complete!")
