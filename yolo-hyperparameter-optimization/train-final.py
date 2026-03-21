@@ -1,34 +1,110 @@
 #!/usr/bin/env python3
 # train_final.py
+
+# Standard Library imports
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# External imports
 import yaml
 from ultralytics import YOLO
 
-# Path to your model and data
-MODEL_PATH = "/home/gamerock/scythe1/yolov12n.pt"
-DATA_PATH = "/home/gamerock/scythe1/datasets/2025_1_98_manual/data.yaml"
-DEVICE = "0"
+# Local imports
+from yolo_dataset import RGBClassificationTrainer
+from yolo_tools import evaluate_and_report
 
-# Load hyperparameters from YAML
-with open("best_hyperparameters.yaml", "r") as f:
-    hyp = yaml.safe_load(f)
 
-print("Loaded hyperparameters:")
-for key, value in hyp.items():
-    print(f"  {key}: {value}")
+def main():
+    parser = argparse.ArgumentParser(
+        description="Final training with best hyperparameters"
+    )
+    parser.add_argument(
+        "--model", type=str, default="yolo11n-cls.pt", help="Model path"
+    )
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="Path to dataset root (with train/val/test splits)",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=100, help="Number of training epochs"
+    )
+    parser.add_argument("--device", type=str, default="0", help="CUDA device")
+    parser.add_argument(
+        "--project", type=str, default="./final_model", help="Project directory"
+    )
+    parser.add_argument(
+        "--hyp",
+        type=str,
+        default="best_hyperparameters.yaml",
+        help="Path to hyperparameters YAML",
+    )
+    parser.add_argument(
+        "--bg-mode",
+        type=str,
+        default="overlay",
+        choices=["gray", "overlay"],
+        help="Background mode for RGBA images passed to RGBClassificationTrainer",
+    )
+    parser.add_argument(
+        "--incorrect-class",
+        type=str,
+        default="incorrect",
+        help="Name of the positive (incorrect) class used for threshold search",
+    )
+    args = parser.parse_args()
 
-# Initialize the model
-print(f"\nInitializing model: {MODEL_PATH}")
-model = YOLO(MODEL_PATH)
+    # Load hyperparameters from YAML
+    with open(args.hyp, "r") as f:
+        hyp = yaml.safe_load(f)
 
-# Train with best hyperparameters
-print("\nStarting training with best hyperparameters...")
-model.train(
-    data=DATA_PATH,
-    epochs=100,
-    imgsz=640,
-    device=DEVICE,
-    project="./final_model",
-    **hyp,  # Unpack hyperparameters as keyword arguments
-)
+    print("Loaded hyperparameters:")
+    for key, value in hyp.items():
+        print(f"  {key}: {value}")
 
-print("\nTraining complete!")
+    # Set bg_mode on the class before initializing the model
+    RGBClassificationTrainer.bg_mode = args.bg_mode
+
+    # Initialize the model
+    print(f"\nInitializing model: {args.model}")
+    model = YOLO(args.model)
+
+    # Train with best hyperparameters
+    print("\nStarting training with best hyperparameters...")
+    model.train(
+        data=args.data,
+        epochs=args.epochs,
+        device=args.device,
+        project=args.project,
+        trainer=RGBClassificationTrainer,
+        deterministic=True,
+        **hyp,
+    )
+
+    print("\nTraining complete!")
+
+    batch_size = hyp.get("batch", 16)
+    hyp_lines = "\n".join(f"  {k}: {v}" for k, v in hyp.items())
+    header = (
+        f"FINAL TRAINING RESULTS\n"
+        f"Model: {args.model}\n"
+        f"Epochs: {args.epochs}\n"
+        f"Hyperparameters file: {args.hyp}\n"
+        f"Hyperparameters:\n{hyp_lines}\n\n"
+    )
+    evaluate_and_report(
+        model,
+        Path(args.data),
+        batch_size,
+        args.incorrect_class,
+        header,
+        Path(args.project) / "final_training_results.txt",
+    )
+
+
+if __name__ == "__main__":
+    main()

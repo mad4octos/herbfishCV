@@ -1,31 +1,43 @@
 #!/usr/bin/env python3
-# bayesian_yolo_optimizer.py
 
+# Standard Library imports
 import argparse
-import os
+import sys
 from pathlib import Path
 
-import numpy as np
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root
+
+# External imports
 import optuna
 import yaml
+from optuna.trial import FrozenTrial
+from optuna.trial._trial import Trial
 from ultralytics import YOLO
+
+# Local imports
+from yolo_dataset import RGBClassificationTrainer
+from yolo_tools import evaluate_and_report
 
 # Default hyperparameter ranges - these will be passed directly to the YOLO train method
 DEFAULT_HYP_RANGES = {
     "lr0": (0.001, 0.1),  # Initial learning rate
+    "lrf": (0.01, 0.5),  # final LR as fraction of lr0
     "momentum": (0.8, 0.99),  # SGD momentum
-    "weight_decay": (0.0001, 0.001),  # Weight decay
+    "weight_decay": (0.0001, 0.01),  # Weight decay
     "hsv_h": (0.0, 0.1),  # HSV hue augmentation
     "hsv_s": (0.0, 0.9),  # HSV saturation augmentation
     "hsv_v": (0.0, 0.9),  # HSV value augmentation
-    "degrees": (0.0, 1.0),  # Rotation augmentation
+    "degrees": (0.0, 45.0),  # Rotation augmentation
     "translate": (0.0, 0.2),  # Translation augmentation
     "scale": (0.0, 0.9),  # Scale augmentation
     "fliplr": (0.0, 0.5),  # Horizontal flip probability
+    "flipud": (0.0, 0.5),
+    "dropout": (0.0, 0.5),  # Dropout rate
+    "mixup": (0.0, 0.5),
 }
 
 
-def objective(trial, args):
+def objective(trial: Trial, args):
     """Define the objective function to be optimized."""
     # Sample hyperparameters
     train_args = {}
@@ -37,6 +49,8 @@ def objective(trial, args):
     train_args["project"] = args.project
     train_args["name"] = f"trial_{trial.number}"
     train_args["val"] = True  # Always validate during training
+    train_args["deterministic"] = True
+    train_args["trainer"] = RGBClassificationTrainer
 
     # Add hyperparameters that will be directly passed to train method
     for param_name, param_range in DEFAULT_HYP_RANGES.items():
@@ -51,10 +65,14 @@ def objective(trial, args):
             )
 
     # Add specific parameters you might want to tune
-    train_args["batch"] = trial.suggest_categorical("batch", [4, 8, 16, 32])
-    train_args["imgsz"] = trial.suggest_categorical("imgsz", [416, 512, 640, 768])
+    train_args["batch"] = trial.suggest_categorical(
+        "batch", [4, 8, 16, 32, 64, 128, 256]
+    )
+    train_args["imgsz"] = trial.suggest_categorical("imgsz", [128, 192, 224, 256])
 
-    # Initialize the model
+    # Set bg_mode on the class before initializing the model
+    RGBClassificationTrainer.bg_mode = args.bg_mode
+
     try:
         # Use explicit model path from args directly
         model = YOLO(args.model)
@@ -65,25 +83,16 @@ def objective(trial, args):
         # Train the model with the sampled hyperparameters directly passed
         results = model.train(**train_args)
 
-        # Extract the best validation metrics
-        # For YOLO, a good metric is mAP50-95 (mean Average Precision)
-        metrics = results.results_dict
-        map50_95 = metrics.get("metrics/mAP50-95(B)", 0)
-
-        # Optuna maximizes the objective by default, so we return the mAP
-        return map50_95
+        # RGBClassificationTrainer.fitness returns macro F1
+        fitness = results.fitness
+        return float(fitness) if fitness is not None else 0.0
     except Exception as e:
         print(f"Training failed with error: {e}")
         return 0.0  # Return a low score so this trial is not selected
 
 
-def evaluate_best_model(best_trial, args):
-    """Evaluate the best model on a separate validation dataset."""
-    # If no external validation dataset is provided, skip evaluation
-    if not args.external_val_data:
-        print("No external validation dataset provided. Skipping final evaluation.")
-        return None
-
+def evaluate_best_model(best_trial: FrozenTrial, args):
+    """Evaluate the best model on the test split of the training dataset."""
     # Get the best hyperparameters
     best_params = {
         param: best_trial.params.get(
@@ -91,10 +100,11 @@ def evaluate_best_model(best_trial, args):
         )
         for param in DEFAULT_HYP_RANGES
     }
+    best_params["batch"] = best_trial.params.get("batch", 16)
+    best_params["imgsz"] = best_trial.params.get("imgsz", 224)
 
     # Add specific parameters that were tuned
-    batch_size = best_trial.params.get("batch", 16)
-    img_size = best_trial.params.get("imgsz", 640)
+    batch_size = best_params["batch"]
 
     # Save best hyperparameters to a YAML file for reference and reuse
     with open("best_hyperparameters.yaml", "w") as f:
@@ -107,25 +117,23 @@ def evaluate_best_model(best_trial, args):
 
     # Initialize the model with the best weights
     if best_model_path.exists():
+        RGBClassificationTrainer.bg_mode = args.bg_mode
         model = YOLO(str(best_model_path))
 
-        # Validate on the external validation dataset
-        results = model.val(
-            data=args.external_val_data,
-            batch=batch_size,
-            imgsz=img_size,
-            device=args.device,
-            project=args.project,
-            name="final_evaluation",
+        header = (
+            f"BEST TRIAL RESULTS\n"
+            f"Trial #: {best_trial.number}\n"
+            f"Selection: Highest macro F1 on val split across all Optuna trials\n"
+            f"Macro F1 (val) = {best_trial.value:.4f}\n\n"
         )
-
-        print(f"\nBest model evaluation on external validation dataset:")
-        print(f"mAP50-95: {results.box.map}")
-        print(f"mAP50: {results.box.map50}")
-        print(f"Precision: {results.box.p}")
-        print(f"Recall: {results.box.r}")
-
-        return results
+        return evaluate_and_report(
+            model,
+            Path(args.data),
+            batch_size,
+            args.incorrect_class,
+            header,
+            Path(args.project) / "best_trial_results.txt",
+        )
     else:
         print(f"Best model weights not found at {best_model_path}")
         return None
@@ -133,28 +141,22 @@ def evaluate_best_model(best_trial, args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Bayesian Hyperparameter Optimization for YOLO"
+        description="Bayesian Hyperparameter Optimization for YOLO Classification"
     )
     parser.add_argument(
         "--data",
         type=str,
         required=True,
-        help="Path to training data.yaml (with train/val splits)",
+        help="Path to dataset root directory (with train/val/test subdirectories)",
     )
     parser.add_argument(
-        "--external-val-data",
-        type=str,
-        default="",
-        help="Path to external validation data.yaml for final evaluation",
+        "--model", type=str, default="yolo11n-cls.pt", help="Initial model path"
     )
     parser.add_argument(
-        "--model", type=str, default="yolov12m.pt", help="Initial model path"
+        "--epochs", type=int, default=100, help="Number of epochs per trial"
     )
     parser.add_argument(
-        "--epochs", type=int, default=20, help="Number of epochs per trial"
-    )
-    parser.add_argument(
-        "--trials", type=int, default=20, help="Number of optimization trials"
+        "--trials", type=int, default=300, help="Number of optimization trials"
     )
     parser.add_argument(
         "--workers", type=int, default=4, help="Number of dataloader workers"
@@ -162,6 +164,19 @@ def main():
     parser.add_argument("--device", type=str, default="0", help="CUDA device")
     parser.add_argument(
         "--project", type=str, default="runs/bayesian_opt", help="Project directory"
+    )
+    parser.add_argument(
+        "--bg-mode",
+        type=str,
+        default="overlay",
+        choices=["gray", "overlay"],
+        help="Background mode for RGBA images passed to RGBClassificationTrainer",
+    )
+    parser.add_argument(
+        "--incorrect-class",
+        type=str,
+        default="incorrect",
+        help="Name of the positive (incorrect) class used for threshold search",
     )
     args = parser.parse_args()
 
@@ -173,14 +188,12 @@ def main():
     if not model_path.exists() and not args.model.startswith("yolo"):
         print(f"WARNING: Model path {args.model} does not exist!")
 
-    # Create study
     study = optuna.create_study(
         direction="maximize",
         study_name="yolo_bayesian_optimization",
         sampler=optuna.samplers.TPESampler(seed=42),
     )
 
-    # Start optimization
     print(f"Starting Bayesian Optimization with {args.trials} trials")
     study.optimize(lambda trial: objective(trial, args), n_trials=args.trials)
 
@@ -198,15 +211,16 @@ def main():
         param: best_params.get(param, DEFAULT_HYP_RANGES[param][0])
         for param in DEFAULT_HYP_RANGES
     }
+    best_hyp["batch"] = best_params.get("batch", 16)
+    best_hyp["imgsz"] = best_params.get("imgsz", 224)
 
     with open("best_hyperparameters.yaml", "w") as f:
         yaml.dump(best_hyp, f)
 
-    print(f"\nBest hyperparameters saved to best_hyperparameters.yaml")
+    print("\nBest hyperparameters saved to best_hyperparameters.yaml")
 
-    # Evaluate the best model on the external validation dataset if provided
-    if args.external_val_data:
-        evaluate_best_model(best_trial, args)
+    # Evaluate the best model on the test split of the dataset
+    evaluate_best_model(best_trial, args)
 
     # Generate optimization visualization
     try:

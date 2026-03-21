@@ -1,7 +1,12 @@
+# Standard library imports
+from pathlib import Path
+
 # External imports
 import matplotlib.pyplot as plt
 import torch
+from sklearn.metrics import classification_report
 from ultralytics import YOLO
+from ultralytics.models.yolo.classify.val import ClassificationValidator
 
 """
 Ultralytics' built-in .val() evaluates classification accuracy using argmax
@@ -99,7 +104,7 @@ def find_best_threshold(
     return best_threshold, best_f1
 
 
-def get_targets_and_confs (
+def get_targets_and_confs(
     model: YOLO, dataloader, positive_class_name: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
@@ -129,3 +134,53 @@ def get_targets_and_confs (
         torch.tensor(all_targets),
         torch.tensor(pos_confs),
     )
+
+
+def evaluate_and_report(
+    model: YOLO,
+    data_root: Path,
+    batch_size: int,
+    incorrect_class: str,
+    header: str,
+    report_path: Path,
+) -> tuple[float, float]:
+    """
+    Find the best confidence threshold on the val split, evaluate on the test
+    split, print the classification report, and write a summary to disk.
+
+    Returns:
+        best_threshold, best_f1
+    """
+    val_dataloader = ClassificationValidator().get_dataloader(
+        data_root / "val", batch_size
+    )
+    test_dataloader = ClassificationValidator().get_dataloader(
+        data_root / "test", batch_size
+    )
+    val_targets, val_confs = get_targets_and_confs(
+        model, val_dataloader, positive_class_name=incorrect_class
+    )
+    test_targets, test_confs = get_targets_and_confs(
+        model, test_dataloader, positive_class_name=incorrect_class
+    )
+    best_t, best_f1 = find_best_threshold(val_confs, val_targets)
+    print(f"Best threshold: {best_t:.3f}  →  F1 max: {best_f1:.3f}")
+    preds = (test_confs >= best_t).to(torch.uint8)
+    report = classification_report(
+        test_targets, preds, target_names=list(model.names.values()), digits=3
+    )
+    print(report)
+
+    summary = (
+        f"{header}"
+        f"Threshold (val, '{incorrect_class}' class): {best_t:.4f}\n"
+        f"F1 at threshold (val, '{incorrect_class}' class): {best_f1:.4f}\n\n"
+        f"CLASSIFICATION REPORT — TEST SPLIT\n\n"
+        f"{report}"
+    )
+    report_path = Path(report_path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(summary)
+    print(f"\nReport saved to {report_path}")
+
+    return best_t, best_f1
