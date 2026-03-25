@@ -9,6 +9,7 @@ annotated errors CSV.
 # Standard Library imports
 import sys
 import argparse
+import logging
 from pathlib import Path
 
 sys.path.append("..")
@@ -18,6 +19,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import torch
 from tqdm import tqdm
 
 # Local imports
@@ -31,6 +33,20 @@ from convert_utils import (
     get_blobs_from_mask,
     load_masks,
 )
+
+torch.set_num_threads(1)
+
+# Logging
+_log_formatter = logging.Formatter(
+    fmt="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(_log_formatter)
+logger.addHandler(_console_handler)
 
 # Constants
 CLASS_CORRECT = "correct"
@@ -213,13 +229,13 @@ def main(
         if dir_path.exists() and any(dir_path.iterdir()):
             raise ValueError(f"Destination directory '{dir_path}' is not empty")
 
-    if (not incorrect_frames) or (not correct_frames):
+    if not correct_frames:
         raise ValueError(
-            "Correct/Incorrect frames must be provided to distinguish correct from incorrect blobs."
+            "At least one correct frame must be provided. Incorrect frames are optional."
         )
 
+    logger.info(f"Loading masks from '{masks_filepath.absolute()}'")
     masks = load_masks(masks_filepath)
-    print(f"Loading masks from '{masks_filepath.absolute()}'")
 
     num_image_files = sum(1 for _ in images_path.iterdir())
     assert num_image_files == len(masks), (
@@ -236,7 +252,9 @@ def main(
         elif extracted_frame_idx in correct_frames:
             class_name = CLASS_CORRECT
         else:
-            print(f"Skipping frame {extracted_frame_idx}: not in subset of interest")
+            logger.info(
+                f"Skipping frame {extracted_frame_idx}: not in subset of interest"
+            )
             continue
 
         dst_dir = output_folder / obs_id / class_name
@@ -252,7 +270,7 @@ def main(
         image_filepath = images_path / filename
 
         if not image_filepath.exists():
-            print(f"Frame doesn't exist! '{image_filepath.name}'")
+            logger.warning(f"Frame doesn't exist! '{image_filepath.name}'")
             continue
 
         # Load frame
@@ -346,55 +364,81 @@ Examples:
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    try:
+        args = parse_args()
 
-    # Validate masks file
-    if not args.masks_filepath.is_absolute():
-        raise ValueError(f"Masks file path must be absolute: {args.masks_filepath}")
-    if not args.masks_filepath.exists():
-        raise FileNotFoundError(f"Masks file not found: {args.masks_filepath}")
-    if not args.masks_filepath.is_file():
-        raise ValueError(f"Masks file path is not a file: {args.masks_filepath}")
+        _log_dir = args.output_folder / "logs"
+        _log_dir.mkdir(exist_ok=True, parents=True)
+        _file_handler = logging.FileHandler(_log_dir / f"{args.errors_obs_id}.log")
+        _file_handler.setFormatter(_log_formatter)
+        logger.addHandler(_file_handler)
 
-    # Validate images directory
-    if not args.images_dirpath.is_absolute():
-        raise ValueError(
-            f"Images directory path must be absolute: {args.images_dirpath}"
+        logger.info("Starting crop extraction")
+        logger.info(f"Error types of interest: {ERROR_TYPES_OF_INTEREST}")
+
+        # Validate masks file
+        if not args.masks_filepath.is_absolute():
+            raise ValueError(f"Masks file path must be absolute: {args.masks_filepath}")
+        if not args.masks_filepath.exists():
+            raise FileNotFoundError(f"Masks file not found: {args.masks_filepath}")
+        if not args.masks_filepath.is_file():
+            raise ValueError(f"Masks file path is not a file: {args.masks_filepath}")
+
+        # Validate images directory
+        if not args.images_dirpath.is_absolute():
+            raise ValueError(
+                f"Images directory path must be absolute: {args.images_dirpath}"
+            )
+        if not args.images_dirpath.exists():
+            raise FileNotFoundError(
+                f"Images directory not found: {args.images_dirpath}"
+            )
+        if not args.images_dirpath.is_dir():
+            raise ValueError(f"Images path is not a directory: {args.images_dirpath}")
+
+        ####################################################################################################################
+        # Load errors CSV
+        ####################################################################################################################
+        logger.info(f"Loading errors CSV from '{args.errors_csv_filepath}'")
+        video_errors_df = pd.read_csv(args.errors_csv_filepath)
+        video_errors_df = video_errors_df.loc[
+            video_errors_df.obsID == args.errors_obs_id
+        ]
+
+        # Classify frames based on error types
+        incorrect_frames, correct_frames = partition_frames_by_errors(
+            args.images_dirpath, video_errors_df, ERROR_TYPES_OF_INTEREST
         )
-    if not args.images_dirpath.exists():
-        raise FileNotFoundError(f"Images directory not found: {args.images_dirpath}")
-    if not args.images_dirpath.is_dir():
-        raise ValueError(f"Images path is not a directory: {args.images_dirpath}")
+        logger.info(
+            f"Found {len(correct_frames)} correct frames and {len(incorrect_frames)} incorrect frames"
+        )
 
-    ####################################################################################################################
-    # Load errors CSV
-    ####################################################################################################################
-    video_errors_df = pd.read_csv(args.errors_csv_filepath)
-    video_errors_df = video_errors_df.loc[video_errors_df.obsID == args.errors_obs_id]
+        assert not set(correct_frames).intersection(set(incorrect_frames)), (
+            "There should be no intersection between correct frames and incorrect frames of interest"
+        )
 
-    # Classify frames based on error types
-    incorrect_frames, correct_frames = partition_frames_by_errors(
-        args.images_dirpath, video_errors_df, ERROR_TYPES_OF_INTEREST
-    )
+        ####################################################################################################################
 
-    assert not set(correct_frames).intersection(set(incorrect_frames)), (
-        "There should be no intersection between correct frames and incorrect frames of interest"
-    )
+        # TODO: this function will consider ALL fish within an erroneous frame as an incorrectly masked fish
+        # That's fine for the Focal Follow project because the CSV shows only one ObjID, but if this is used in a project
+        # where there may be both correctly and incorrectly labeled fish in a single frame, that would be a problem.
+        main(
+            obs_id=args.errors_obs_id,
+            images_path=args.images_dirpath,
+            masks_filepath=args.masks_filepath,
+            output_folder=args.output_folder,
+            filename_num_zeros=args.filename_num_zeros,
+            incorrect_frames=incorrect_frames,
+            correct_frames=correct_frames,
+            area_threshold=args.area_threshold,
+            size_threshold=args.size_threshold,
+            overlay=args.overlay,
+        )
+        logger.info("Crop extraction completed successfully")
 
-    ####################################################################################################################
-
-    # TODO: this function will consider ALL fish within an erroneous frame as an incorrectly masked fish
-    # That's fine for the Focal Follow project because the CSV shows only one ObjID, but if this is used in a project
-    # where there may be both correctly and incorrectly labeled fish in a single frame, that would be a problem.
-    main(
-        obs_id=args.errors_obs_id,
-        images_path=args.images_dirpath,
-        masks_filepath=args.masks_filepath,
-        output_folder=args.output_folder,
-        filename_num_zeros=args.filename_num_zeros,
-        incorrect_frames=incorrect_frames,
-        correct_frames=correct_frames,
-        area_threshold=args.area_threshold,
-        size_threshold=args.size_threshold,
-        overlay=args.overlay,
-    )
+    except (FileNotFoundError, ValueError) as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        sys.exit(1)
