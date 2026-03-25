@@ -1,15 +1,16 @@
 """
 Convert a COCO detection dataset to Ultralytics YOLO format using Datumaro.
 
-Expected CSV layout (two columns, with header):
+Expected CSV layout (three columns, with header):
 
-    dir_path,split
-    /path/to/240101_01_label_L,train
-    /path/to/240101_02_label_R,val
+    dir_path,split,observation_id
+    /path/to/240101_01_label_L,train,240101_01_L
+    /path/to/240101_02_label_R,val,240101_02_R
     ...
 
-Each `dir_path` must be an observation subfolder whose name matches the pattern
-YYMMDD_NN…_L|R and must contain `annotations/` and `images/<split>/` subdirs.
+Each `dir_path` must be an observation subfolder that contains `annotations/`
+and `images/train/` subdirs. The `observation_id` value is used as a filename
+prefix in the output to avoid collisions across folders.
 
 Output directory will contain the YOLO layout expected by Ultralytics:
 
@@ -37,9 +38,8 @@ from pathlib import Path
 # External imports
 import datumaro.components.dataset_base
 import datumaro.components.media
-
-# External imports
 import pandas as pd
+import yaml
 from datumaro.components.annotation import (
     Annotation,
     AnnotationType,
@@ -48,6 +48,42 @@ from datumaro.components.annotation import (
 )
 from datumaro.components.dataset import Dataset
 from datumaro.components.dataset_base import CategoriesInfo
+
+EXPECTED_COLUMNS = {"dir_path", "split", "observation_id"}
+
+
+def verify_csv(df: pd.DataFrame, csv_path: Path) -> None:
+    """Validate the CSV dataframe before processing.
+
+    Raises
+    ------
+    ValueError
+        If required columns are missing, any cell is empty, or observation_ids
+        are not unique.
+    """
+    missing = EXPECTED_COLUMNS - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"CSV '{csv_path}' is missing required column(s): {sorted(missing)}. "
+            f"Expected columns: {sorted(EXPECTED_COLUMNS)}, got: {sorted(df.columns)}"
+        )
+
+    for col in EXPECTED_COLUMNS:
+        empty_rows = df.index[
+            df[col].isna() | (df[col].astype(str).str.strip() == "")
+        ].tolist()
+        if empty_rows:
+            raise ValueError(
+                f"CSV '{csv_path}': column '{col}' has empty value(s) at row(s): "
+                f"{[r + 2 for r in empty_rows]} (1-indexed, including header)"
+            )
+
+    duplicates = df["observation_id"][df["observation_id"].duplicated()].tolist()
+    if duplicates:
+        raise ValueError(
+            f"CSV '{csv_path}': 'observation_id' must be unique, "
+            f"but found duplicate value(s): {duplicates}"
+        )
 
 
 def find_latest_coco_annotation(ann_dir: Path, split: str = "train") -> Path | None:
@@ -100,11 +136,8 @@ def _build_label_categories(
     return {AnnotationType.label: label_cat}, coco_cat_id_to_dat_label_id
 
 
-FOLDER_PATTERN = re.compile(r"(\d{6}_\d{2}).*_(L|R)")
-
-
 def build_items_from_coco_json(
-    ann_path: Path, images_dir: Path, split: str, folder_id: str, rl: str
+    ann_path: Path, images_dir: Path, split: str, observation_id: str
 ) -> tuple[list[datumaro.components.dataset_base.DatasetItem], CategoriesInfo]:
     """Parse a COCO instances JSON and return DatasetItems and categories.
 
@@ -116,10 +149,10 @@ def build_items_from_coco_json(
         Directory that contains the image files listed in the JSON.
     split:
         Subset name to assign to every item (e.g. `train`).
-    folder_id:
-        Observation id extracted from the subfolder name (e.g. `240101_01`).
-    rl:
-        Side extracted from the subfolder name (`L` or `R`).
+    observation_id:
+        Unique identifier for this folder as specified in the CSV
+        `observation_id` column (e.g. `240101_01_L`). Used as a filename
+        prefix to avoid collisions across observation folders.
     """
     with open(ann_path, encoding="utf-8") as f:
         coco = json.load(f)
@@ -134,6 +167,7 @@ def build_items_from_coco_json(
         anns_by_image[ann["image_id"]].append(ann)
 
     items: list[datumaro.components.dataset_base.DatasetItem] = []
+
     for img_info in coco["images"]:
         img_id = img_info["id"]
         h = img_info["height"]
@@ -150,7 +184,7 @@ def build_items_from_coco_json(
 
         items.append(
             datumaro.components.dataset_base.DatasetItem(
-                id=f"{folder_id}_{rl}_{Path(file_name).stem}",
+                id=f"{observation_id}_{Path(file_name).stem}",
                 subset=split,
                 media=datumaro.components.media.Image.from_file(
                     str(image_path), size=(h, w)
@@ -168,8 +202,10 @@ def convert(csv_path: Path, output_dir: Path) -> None:
     Parameters
     ----------
     csv_path:
-        Path to a CSV file with columns `dir_path` and `split`. Each row
-        specifies an observation subfolder and the split it belongs to.
+        Path to a CSV file with columns `dir_path`, `split`, and
+        `observation_id`. Each row specifies an observation subfolder, the
+        split it belongs to, and the unique identifier used to prefix output
+        filenames.
     output_dir:
         Destination directory for the converted YOLO dataset.
     """
@@ -177,17 +213,13 @@ def convert(csv_path: Path, output_dir: Path) -> None:
     categories: CategoriesInfo | None = None
 
     df = pd.read_csv(csv_path)
+    verify_csv(df, csv_path)
 
     for _, row in df.iterrows():
         subdir = Path(row["dir_path"])
         split = row["split"]
+        observation_id = row["observation_id"]
 
-        m = FOLDER_PATTERN.search(str(subdir.resolve()))
-        if not m:
-            print(f"Skipping {subdir.name}: does not match observation folder pattern.")
-            continue
-
-        folder_id, rl = m.groups()
         annotations_dir = subdir / "annotations"
         images_dir = subdir / "images" / "train"
 
@@ -200,11 +232,11 @@ def convert(csv_path: Path, output_dir: Path) -> None:
             raise FileNotFoundError(f"Images directory not found: {images_dir}")
 
         print(
-            f"Processing {subdir.name} | prepend id={folder_id}_{rl}] | target split={split}"
+            f"Processing {subdir.name} | observation_id={observation_id} | split={split}"
         )
 
         items, label_categories = build_items_from_coco_json(
-            annotation_file, images_dir, split, folder_id, rl
+            annotation_file, images_dir, split, observation_id
         )
         all_items.extend(items)
 
@@ -221,8 +253,60 @@ def convert(csv_path: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"Exporting to YOLO Ultralytics format at: {output_dir}")
     dataset.export(
-        str(output_dir), format="yolo_ultralytics_detection", save_media=True
+        str(output_dir),
+        format="yolo_ultralytics_detection",
+        save_media=True,
+        add_path_prefix=False,
     )
+
+    # Datumaro skips label files for items with no annotations.
+    # Create empty .txt files for any exported image that has no label file.
+    IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+    images_root = output_dir / "images"
+    labels_root = output_dir / "labels"
+    empty_count = 0
+    for image_file in images_root.rglob("*"):
+        if image_file.suffix.lower() not in IMAGE_EXTENSIONS:
+            continue
+        label_file = labels_root / image_file.relative_to(images_root).with_suffix(
+            ".txt"
+        )
+        if not label_file.exists():
+            label_file.parent.mkdir(parents=True, exist_ok=True)
+            label_file.touch()
+            empty_count += 1
+    if empty_count:
+        print(f"Created {empty_count} empty label file(s) for unannotated images.")
+
+    # Datumaro generates train.txt/val.txt with forward-slash relative paths.
+    # On Windows, Ultralytics concatenates the parent dir (backslash) with these
+    # paths producing mixed separators, so the \images\ -> \labels\ replacement
+    # that Ultralytics uses for label lookup fails silently.
+    # Fix: rewrite data.yaml to reference image directories directly instead of
+    # txt files. Ultralytics then scans each directory with fully resolved absolute
+    # paths, so the replacement works correctly on all platforms.
+    yaml_path = output_dir / "data.yaml"
+    with open(yaml_path, encoding="utf-8") as f:
+        data_yaml = yaml.safe_load(f)
+
+    data_yaml["path"] = str(output_dir.resolve())
+    for split in ("train", "val", "test"):
+        if split not in data_yaml:
+            continue
+        split_dir = output_dir / "images" / split
+        if split_dir.is_dir():
+            data_yaml[split] = f"images/{split}"
+        else:
+            del data_yaml[split]
+
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(data_yaml, f, default_flow_style=False, sort_keys=False)
+
+    for split in ("train", "val", "test"):
+        txt_file = output_dir / f"{split}.txt"
+        if txt_file.exists():
+            txt_file.unlink()
+
     print("Done.")
 
 
@@ -236,7 +320,7 @@ def parse_args() -> argparse.Namespace:
         "--csv",
         required=True,
         type=Path,
-        help="CSV file with columns 'dir_path' and 'split'.",
+        help="CSV file with columns 'dir_path', 'split', and 'observation_id'.",
     )
     parser.add_argument(
         "--output-dir",
