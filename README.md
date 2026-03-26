@@ -172,6 +172,127 @@ python multi_dataset_builder.py --manual \
   - Defines in `model_weights_path` the path towards the classifier model used to reject incorrectly masked fish.
 
 
+### Scripts
+
+##### scripts/extract_crops.py
+
+Extracts blob crops from SAM2 segmentation masks and classifies them as `correct` or `incorrect` based on a manually annotated errors CSV. Crops are saved into subdirectories named after the observation ID. By default crops are RGBA PNGs; pass `--overlay` to save masked overlay images instead.
+
+Note: see the "bulk_extract_crops.py" script description below to run this in bulk!
+
+```bash
+python extract_crops.py \
+  --images-dirpath "/path/to/frames/MH_JM_060624_146_L" \
+  --masks-filepath "/path/to/masks/CR_JM_060624_146_playa_largu_scuba_IPScv_L_mask.pkl" \
+  --errors-csv-filepath "/path/to/SAM2_errors_ff_2024 - SAM2_errors.csv" \
+  --errors-obs-id "JM_060624_146_playa_largu_scuba_IPScv_L" \
+  --output-folder "/path/to/automatic_mask_cleaner_data_overlay" \
+  --overlay
+```
+
+**Arguments:**
+
+| Argument | Description |
+|---|---|
+| `--images-dirpath` | Absolute path to the directory containing the image frames. |
+| `--masks-filepath` | Absolute path to the masks `.pkl` file. |
+| `--errors-csv-filepath` | Absolute path to the errors CSV file. |
+| `--errors-obs-id` | Observation ID string exactly as it appears in the errors CSV. |
+| `--output-folder` | Root output folder. Crops are saved under `<output-folder>/<obs-id>/correct\|incorrect/`. |
+| `--filename-num-zeros` | Zero-padding width for frame filenames (default: `4` for focal follow, use `5` for stationary). |
+| `--area-threshold` | Minimum blob area in pixels (default: from `Config`). |
+| `--size-threshold` | Minimum blob width/height in pixels (default: from `Config`). |
+| `--overlay` | Save masked overlay crops instead of RGBA crops. |
+
+---
+
+##### scripts/bulk_extract_crops.py
+
+Runs `extract_crops.py` in bulk for every `(frames_folder, mask_file)` pair listed in a matched CSV. Edit the constants at the top of the file to point to your data paths and CSV before running.
+
+```bash
+python bulk_extract_crops.py
+```
+
+**Constants to configure (top of file):**
+
+| Constant | Description |
+|---|---|
+| `FRAMES_BASE` | Root directory containing all frame folders. |
+| `MASKS_BASE` | Root directory containing all mask `.pkl` files. |
+| `ERRORS_CSV` | Path to the errors CSV file. |
+| `OUTPUT_FOLDER` | Root output folder for all crops. |
+| `CSV_PATH` | Path to the matched CSV (`frames_masks_matched_subset.csv`). |
+
+The script derives the `--errors-obs-id` from the mask filename by stripping the annotator prefix (e.g. `CR_`) and the `_mask.pkl` suffix.
+
+---
+
+##### scripts/organize_classifier_dataset.py
+
+Reorganizes cropped fish images (produced by `extract_crops.py` / `bulk_extract_crops.py`) into a `train` / `val` / `test` classifier dataset. Folders are kept intact across splits (no folder is split between train and val), and stereo pairs (L/R folders sharing the same ID) are always assigned together. Train and val pools are stratified by correct-ratio before greedy size-based filling, so both splits span the full easy-to-hard range.
+
+```bash
+python organize_classifier_dataset.py \
+  /path/to/crops \
+  /path/to/output_dataset \
+  --test-folders test_folders.txt \
+  --train-fraction 0.8
+```
+
+**Arguments:**
+
+| Argument | Description |
+|---|---|
+| `src_dir` | Source directory containing labelled crop folders (`<folder_id>_<L\|R>/correct\|incorrect/`). |
+| `target_dir` | Destination directory where `train/`, `val/`, and `test/` splits will be written. |
+| `--test-folders` | Text file listing folder names (one per line) to reserve for the test split. Stereo pair integrity is enforced: both L and R must be listed together or neither. |
+| `--train-fraction` | Target fraction of total images for the train split (default: `0.8`). |
+
+Output filenames are prefixed with `<folder_id>_<L|R>_` to avoid collisions when images from different folders share the same base name.
+
+---
+
+##### scripts/convert_coco_to_yolo.py
+
+Converts one or more COCO detection datasets into a single Ultralytics YOLO dataset. Input folders and their target splits are specified via a CSV file (columns `dir_path`, `split`, and `observation_id`). Each folder must contain `annotations/` and `images/train/` subdirectories. When multiple versioned annotation files exist (`instances_train_v1.json`, `instances_train_v2.json`, ...) the highest-versioned file is used automatically.
+
+```bash
+python scripts/convert_coco_to_yolo.py \
+  --csv /path/to/dirs.csv \
+  --output-dir /path/to/yolo_dataset
+```
+
+**Arguments:**
+
+| Argument | Description |
+|---|---|
+| `--csv` | CSV file with columns `dir_path`, `split`, and `observation_id`. Each row points to an observation subfolder, its YOLO split, and the unique identifier used to prefix output filenames. |
+| `--output-dir` | Destination directory for the converted YOLO dataset. |
+
+**CSV format** (`--csv`):
+
+```
+dir_path,observation_id,split
+/path/to/240101_01_label_L,240101_01_L,train
+/path/to/240101_02_label_R,240101_02_R,val
+```
+
+**Output layout:**
+
+```
+<output-dir>/
+├── images/
+│   └── <split>/
+├── labels/
+│   └── <split>/
+└── data.yaml
+```
+
+Image filenames in the output are prefixed with the `observation_id` value from the CSV to avoid collisions when images from different observation folders share the same base name.
+
+---
+
 ### Notebooks
 
 ##### convert_masks.ipynb
