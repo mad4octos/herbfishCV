@@ -26,7 +26,7 @@ def draw_mask_overlay(
         fg = mask == class_id
 
     overlay[fg] = color
-    weighted_image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, dst=image)
+    weighted_image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
 
     return weighted_image
 
