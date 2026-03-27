@@ -52,6 +52,7 @@ def objective(trial: Trial, args):
     train_args["val"] = True  # Always validate during training
     train_args["deterministic"] = True
     train_args["trainer"] = RGBClassificationTrainer
+    train_args["workers"] = args.workers
 
     # Add hyperparameters that will be directly passed to train method
     for param_name, param_range in DEFAULT_HYP_RANGES.items():
