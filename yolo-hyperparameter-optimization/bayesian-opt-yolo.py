@@ -27,9 +27,7 @@ FIXED_AUG_PARAMS = {
 
 # Default hyperparameter ranges - these will be passed directly to the YOLO train method
 DEFAULT_HYP_RANGES = {
-    "lr0": (0.001, 0.1),  # Initial learning rate
-    "lrf": (0.01, 0.5),  # final LR as fraction of lr0
-    "momentum": (0.8, 0.99),  # SGD momentum
+    "lrf": (0.001, 0.1),  # the fraction of the initial learning rate that the scheduler decays to by the final epoch
     "weight_decay": (0.0001, 0.01),  # Weight decay
     "dropout": (0.0, 0.5),  # Dropout rate
 }
@@ -50,6 +48,10 @@ def objective(trial: Trial, args):
     train_args["deterministic"] = True
     train_args["trainer"] = RGBClassificationTrainer
     train_args["workers"] = args.workers
+    
+    # The optimizer, learning rate (lr0) and momentum will be auto-selected.
+    # The optimizer is chosen between AdamW and SGD based on the number of training iterations.
+    train_args["optimizer"] = "auto"
 
     train_args.update(FIXED_AUG_PARAMS)
 
@@ -60,7 +62,7 @@ def objective(trial: Trial, args):
 
     # Add hyperparameters that will be directly passed to train method
     for param_name, param_range in DEFAULT_HYP_RANGES.items():
-        if param_name == "lr0":
+        if param_name == "lrf":
             # Log-uniform distribution for learning rate
             train_args[param_name] = trial.suggest_float(
                 param_name, param_range[0], param_range[1], log=True
