@@ -69,7 +69,7 @@ done
 # Check if data argument is provided
 if [ -z "$DATA" ]; then
   echo "Error: --data argument is required."
-  echo "Usage: ./run-opt.sh --data path/to/data.yaml [--model yolo11n-cls.pt] [--epochs 40] [--final-epochs 100] [--trials 300] [--device 0] [--workers 4] [--bg-mode overlay] [--incorrect-class incorrect]"
+  echo "Usage: ./run-opt.sh --data path/to/data [--model yolo11n-cls.pt] [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect]"
   exit 1
 fi
 

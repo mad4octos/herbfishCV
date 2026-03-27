@@ -4,14 +4,14 @@ A comprehensive pipeline for automatically optimizing YOLO model hyperparameters
 
 ## Overview
 
-This framework provides an end-to-end solution for finding optimal hyperparameters for YOLO object detection models. It leverages Bayesian optimization (via Optuna) to efficiently search the hyperparameter space, trains a final model with the best parameters, and uses an external dataset (outside training) to analyze model performance (iou_analyzer). Based on the results, it self-adjust hyperparameters and re-trains with the new.
+This framework provides an end-to-end solution for finding optimal hyperparameters for YOLO classification models. It leverages Bayesian optimization (via Optuna) to efficiently search the hyperparameter space and trains a final model with the best parameters, optimizing for macro F1 score on the validation split.
 
 ## Components
 
 - `run-opt.sh`: Main entry script that orchestrates the entire optimization pipeline
 - `bayesian-opt-yolo.py`: Implements Bayesian optimization to find optimal hyperparameters
-- `iou-overlap-analyzer.py`: Evaluates model performance with detailed IoU analysis against a different annotated dataset
 - `train-final.py`: Trains the final model using the best discovered hyperparameters from all runs
+- `dashboard1.py`: Generates an HTML dashboard from trial results — **not yet updated for this classification task**
 
 ## Requirements
 
@@ -28,48 +28,61 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 ## Usage
 
 ```bash
-./run-opt.sh --data PATH_TO_DATA_YAML --external-val-data PATH_TO_VALIDATION_YAML --model MODEL_PATH --epochs EPOCHS --trials TRIALS --device DEVICE
+./run-opt.sh --data PATH_TO_DATA [options]
 ```
 
 ### Arguments
 
-- `--data`: Path to the training data YAML file (required)
-- `--external-val-data`: Path to validation data YAML file (optional)
-- `--model`: Initial YOLO model to optimize (default: "yolov12m.pt")
-- `--epochs`: Number of epochs per trial (default: 20)
-- `--trials`: Number of optimization trials (default: 20)
-- `--device`: CUDA device index (default: "0")
+| Argument | Default | Description |
+|---|---|---|
+| `--data` | *(required)* | Path to dataset root directory (with `train/val/test` subdirectories) |
+| `--model` | `yolo11n-cls.pt` | Initial YOLO classification model path or hub name |
+| `--epochs` | `10` | Number of epochs per optimization trial |
+| `--final-epochs` | `30` | Number of epochs for final model training |
+| `--trials` | `100` | Number of Optuna optimization trials |
+| `--device` | `0` | CUDA device index |
+| `--workers` | `10` | Number of dataloader workers |
+| `--incorrect-class` | `incorrect` | Name of the positive class used for threshold search |
 
 ### Example
 
 ```bash
-./run-opt.sh --data ../datasets/2025_1_98_manual/data.yaml --external-val-data ../datasets/final_validation/data.yaml --model yolov12m.pt --epochs 50 --trials 30 --device 0
+./run-opt.sh \
+  --data ../datasets/fish_classification \
+  --model yolo11n-cls.pt \
+  --epochs 10 \
+  --final-epochs 30 \
+  --trials 100 \
+  --device 0 \
+  --incorrect-class incorrect
 ```
 
 ## Optimization Process
 
-1. **Bayesian Optimization**: Systematically explores various hyperparameters to find the optimal combination.
-2. **Final Training**: Trains a model using the best hyperparameters for an extended number of epochs.
-3. **IoU Analysis**: Analyzes the final model's performance on a different validation dataset.
+1. **Bayesian Optimization**: Systematically explores hyperparameter combinations, maximizing macro F1 on the validation split across all trials.
+2. **Final Training**: Trains a model from scratch using the best discovered hyperparameters for an extended number of epochs.
 
 ## Hyperparameters Optimized
 
-- Learning rate (lr0)
-- Momentum
-- Weight decay
-- Data augmentation parameters (HSV, rotation, translation, etc.)
-- Batch size
-- Image size
+| Parameter | Type | Range / Options |
+|---|---|---|
+| `lrf` | log-uniform float | [0.001, 0.1] |
+| `weight_decay` | float | [0.0001, 0.01] |
+| `dropout` | float | [0.0, 0.5] |
+| `batch` | categorical | 4, 8, 16, 32, 64, 128, 256 |
+| `imgsz` | categorical | 128, 192, 224, 256 |
+| `bg_mode` | categorical | `gray`, `overlay` |
+
+The following training settings are fixed (not tuned): `optimizer=auto` (AdamW or SGD selected automatically based on training iterations), `flipud=0.5`, `scale=0.0`, and RandAugment via ultralytics' default `auto_augment`.
 
 ## Output
 
-The optimization process creates a timestamped directory containing:
+The optimization process creates a timestamped directory (`yolo_optimization_<TIMESTAMP>/`) containing:
 
 - `best_hyperparameters.yaml`: Best hyperparameter values discovered
-- `optimization_results/`: Training results for each trial
+- `optimization_results/`: Training results for each Optuna trial, including `best_trial_results.txt` with the evaluation report on the test split
 - `final_model/`: Final model trained with the best hyperparameters
-- `iou_analysis/`: IoU analysis results (if external validation data provided)
-- Visualization plots in HTML format:
+- Optuna visualization plots (HTML):
   - `optimization_history.html`
   - `param_importances.html`
   - `contour_plot.html`
