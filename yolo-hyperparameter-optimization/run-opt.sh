@@ -14,7 +14,6 @@ FINAL_EPOCHS=30
 TRIALS=100
 DEVICE="0"
 WORKERS=10
-BG_MODE="overlay"
 INCORRECT_CLASS="incorrect"
 
 while [[ $# -gt 0 ]]; do
@@ -52,11 +51,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --workers)
       WORKERS="$2"
-      shift
-      shift
-      ;;
-    --bg-mode)
-      BG_MODE="$2"
       shift
       shift
       ;;
