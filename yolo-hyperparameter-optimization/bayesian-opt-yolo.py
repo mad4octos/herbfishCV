@@ -116,10 +116,6 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
     # Add specific parameters that were tuned
     batch_size = best_params["batch"]
 
-    # Save best hyperparameters to a YAML file for reference and reuse
-    with open("best_hyperparameters.yaml", "w") as f:
-        yaml.dump(best_params, f)
-
     # Path to the best model from the optimization
     best_model_path = (
         Path(args.project) / f"trial_{best_trial.number}" / "weights" / "best.pt"
