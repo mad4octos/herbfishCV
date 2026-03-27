@@ -17,6 +17,7 @@ from ultralytics import YOLO
 # Local imports
 from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
+from yolo_callbacks import LossPlotCallbacks
 
 # Default hyperparameter ranges - these will be passed directly to the YOLO train method
 DEFAULT_HYP_RANGES = {
@@ -76,6 +77,15 @@ def objective(trial: Trial, args):
     try:
         # Use explicit model path from args directly
         model = YOLO(args.model)
+
+        cbs = LossPlotCallbacks(
+            figpath=f"{args.project}/trial_{trial.number}/loss_plot.png",
+            mode="classification",
+            names=["correct", "incorrect"],
+        )
+        model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
+        model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
+        model.add_callback("on_val_end", cbs.on_val_end)
 
         # Print model path being used for debugging
         print(f"Loading model from: {args.model}")
