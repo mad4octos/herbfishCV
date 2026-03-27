@@ -56,6 +56,12 @@ def main():
         default="incorrect",
         help="Name of the positive (incorrect) class used for threshold search",
     )
+    parser.add_argument(
+        "--fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of dataset to use (0.0–1.0). Use a small value (e.g. 0.1) for quick smoke-test runs.",
+    )
     args = parser.parse_args()
 
     # Load hyperparameters from YAML
@@ -83,6 +89,7 @@ def main():
         project=args.project,
         trainer=RGBClassificationTrainer,
         deterministic=True,
+        fraction=args.fraction,
         **hyp,
     )
 

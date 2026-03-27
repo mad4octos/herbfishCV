@@ -15,6 +15,7 @@ TRIALS=100
 DEVICE="0"
 WORKERS=10
 INCORRECT_CLASS="incorrect"
+FRACTION=1.0
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -59,6 +60,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --fraction)
+      FRACTION="$2"
+      shift
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -69,7 +75,7 @@ done
 # Check if data argument is provided
 if [ -z "$DATA" ]; then
   echo "Error: --data argument is required."
-  echo "Usage: ./run-opt.sh --data path/to/data [--model yolo11n-cls.pt] [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect]"
+  echo "Usage: ./run-opt.sh --data path/to/data [--model yolo11n-cls.pt] [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect] [--fraction 1.0]"
   exit 1
 fi
 
@@ -106,6 +112,7 @@ echo "Device:            $DEVICE"
 echo "Workers:           $WORKERS"
 echo "Background mode:   optimized (searched during Bayesian opt)"
 echo "Incorrect class:   $INCORRECT_CLASS"
+echo "Fraction:          $FRACTION"
 echo "Project directory: $(pwd)"
 echo "========================================"
 
@@ -119,6 +126,7 @@ python3 ../bayesian-opt-yolo.py \
   --device $DEVICE \
   --workers $WORKERS \
   --incorrect-class "$INCORRECT_CLASS" \
+  --fraction $FRACTION \
   --project ./optimization_results
 
 # Check if optimization completed successfully
@@ -141,6 +149,7 @@ python3 ../train-final.py \
   --device "$DEVICE" \
   --bg-mode "$BG_MODE_BEST" \
   --incorrect-class "$INCORRECT_CLASS" \
+  --fraction $FRACTION \
   --hyp ./best_hyperparameters.yaml \
   --project ./final_model
 

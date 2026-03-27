@@ -43,6 +43,7 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 | `--device` | `0` | CUDA device index |
 | `--workers` | `10` | Number of dataloader workers |
 | `--incorrect-class` | `incorrect` | Name of the positive class used for threshold search |
+| `--fraction` | `1.0` | Fraction of dataset to use (0.0–1.0). Set to a small value (e.g. `0.05`) for quick smoke-test runs |
 
 ### Example
 

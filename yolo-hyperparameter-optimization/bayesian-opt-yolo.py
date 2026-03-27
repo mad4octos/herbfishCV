@@ -48,7 +48,8 @@ def objective(trial: Trial, args):
     train_args["deterministic"] = True
     train_args["trainer"] = RGBClassificationTrainer
     train_args["workers"] = args.workers
-    
+    train_args["fraction"] = args.fraction
+
     # The optimizer, learning rate (lr0) and momentum will be auto-selected.
     # The optimizer is chosen between AdamW and SGD based on the number of training iterations.
     train_args["optimizer"] = "auto"
@@ -184,6 +185,12 @@ def main():
         type=str,
         default="incorrect",
         help="Name of the positive (incorrect) class used for threshold search",
+    )
+    parser.add_argument(
+        "--fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of dataset to use per trial (0.0–1.0). Use a small value (e.g. 0.1) for quick smoke-test runs.",
     )
     args = parser.parse_args()
 
