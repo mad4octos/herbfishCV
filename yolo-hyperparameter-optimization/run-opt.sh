@@ -9,12 +9,12 @@ command -v python3 >/dev/null 2>&1 || { echo "Python 3 is required but not insta
 # Parse command line arguments
 DATA=""
 MODEL="yolo11n-cls.pt"
-EPOCHS=40
-FINAL_EPOCHS=100
-TRIALS=300
+EPOCHS=10
+FINAL_EPOCHS=30
+TRIALS=100
 IMGSZ=224
 DEVICE="0"
-WORKERS=4
+WORKERS=10
 BG_MODE="overlay"
 INCORRECT_CLASS="incorrect"
 
