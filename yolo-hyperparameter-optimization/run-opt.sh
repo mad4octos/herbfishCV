@@ -12,7 +12,6 @@ MODEL="yolo11n-cls.pt"
 EPOCHS=10
 FINAL_EPOCHS=30
 TRIALS=100
-IMGSZ=224
 DEVICE="0"
 WORKERS=10
 BG_MODE="overlay"
@@ -38,11 +37,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --final-epochs)
       FINAL_EPOCHS="$2"
-      shift
-      shift
-      ;;
-    --imgsz)
-      IMGSZ="$2"
       shift
       shift
       ;;
@@ -81,7 +75,7 @@ done
 # Check if data argument is provided
 if [ -z "$DATA" ]; then
   echo "Error: --data argument is required."
-  echo "Usage: ./run-opt.sh --data path/to/data.yaml [--model yolo11n-cls.pt] [--epochs 40] [--final-epochs 100] [--imgsz 224] [--trials 300] [--device 0] [--workers 4] [--bg-mode overlay] [--incorrect-class incorrect]"
+  echo "Usage: ./run-opt.sh --data path/to/data.yaml [--model yolo11n-cls.pt] [--epochs 40] [--final-epochs 100] [--trials 300] [--device 0] [--workers 4] [--bg-mode overlay] [--incorrect-class incorrect]"
   exit 1
 fi
 
@@ -113,7 +107,6 @@ echo "Data:              $DATA"
 echo "Model:             $MODEL"
 echo "Epochs per trial:  $EPOCHS"
 echo "Final epochs:      $FINAL_EPOCHS"
-echo "Final imgsz:       $IMGSZ"
 echo "Number of trials:  $TRIALS"
 echo "Device:            $DEVICE"
 echo "Workers:           $WORKERS"
