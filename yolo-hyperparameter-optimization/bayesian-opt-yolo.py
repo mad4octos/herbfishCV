@@ -72,8 +72,9 @@ def objective(trial: Trial, args):
     )
     train_args["imgsz"] = trial.suggest_categorical("imgsz", [128, 192, 224, 256])
 
-    # Set bg_mode on the class before initializing the model
-    RGBClassificationTrainer.bg_mode = args.bg_mode
+    # Include bg_mode as a categorical hyperparameter in the search
+    bg_mode = trial.suggest_categorical("bg_mode", ["gray", "overlay"])
+    RGBClassificationTrainer.bg_mode = bg_mode
 
     try:
         # Use explicit model path from args directly
@@ -124,7 +125,7 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
 
     # Initialize the model with the best weights
     if best_model_path.exists():
-        RGBClassificationTrainer.bg_mode = args.bg_mode
+        RGBClassificationTrainer.bg_mode = best_trial.params.get("bg_mode", "overlay")
         model = YOLO(str(best_model_path))
 
         header = (
@@ -173,13 +174,6 @@ def main():
         "--project", type=str, default="runs/bayesian_opt", help="Project directory"
     )
     parser.add_argument(
-        "--bg-mode",
-        type=str,
-        default="overlay",
-        choices=["gray", "overlay"],
-        help="Background mode for RGBA images passed to RGBClassificationTrainer",
-    )
-    parser.add_argument(
         "--incorrect-class",
         type=str,
         default="incorrect",
@@ -220,6 +214,7 @@ def main():
     }
     best_hyp["batch"] = best_params.get("batch", 16)
     best_hyp["imgsz"] = best_params.get("imgsz", 224)
+    best_hyp["bg_mode"] = best_params.get("bg_mode", "overlay")
 
     with open("best_hyperparameters.yaml", "w") as f:
         yaml.dump(best_hyp, f)

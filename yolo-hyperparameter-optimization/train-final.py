@@ -66,8 +66,9 @@ def main():
     for key, value in hyp.items():
         print(f"  {key}: {value}")
 
-    # Set bg_mode on the class before initializing the model
-    RGBClassificationTrainer.bg_mode = args.bg_mode
+    # bg_mode is a custom trainer arg, not a YOLO train arg — remove before passing to model.train()
+    bg_mode = hyp.pop("bg_mode", args.bg_mode)
+    RGBClassificationTrainer.bg_mode = bg_mode
 
     # Initialize the model
     print(f"\nInitializing model: {args.model}")

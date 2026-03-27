@@ -117,7 +117,7 @@ echo "Final imgsz:       $IMGSZ"
 echo "Number of trials:  $TRIALS"
 echo "Device:            $DEVICE"
 echo "Workers:           $WORKERS"
-echo "Background mode:   $BG_MODE"
+echo "Background mode:   optimized (searched during Bayesian opt)"
 echo "Incorrect class:   $INCORRECT_CLASS"
 echo "Project directory: $(pwd)"
 echo "========================================"
@@ -131,7 +131,6 @@ python3 ../bayesian-opt-yolo.py \
   --trials $TRIALS \
   --device $DEVICE \
   --workers $WORKERS \
-  --bg-mode "$BG_MODE" \
   --incorrect-class "$INCORRECT_CLASS" \
   --project ./optimization_results
 
@@ -142,6 +141,10 @@ if [ ! -f "./best_hyperparameters.yaml" ]; then
 fi
 echo "Optimization completed. Best hyperparameters saved to best_hyperparameters.yaml"
 
+# Extract the best bg_mode from the saved hyperparameters
+BG_MODE_BEST=$(python3 -c "import yaml; d=yaml.safe_load(open('best_hyperparameters.yaml')); print(d.get('bg_mode', 'overlay'))")
+echo "Best bg_mode from optimization: $BG_MODE_BEST"
+
 # Step 2: Train final model with best hyperparameters
 echo "[2/2] Training final model with best hyperparameters..."
 python3 ../train-final.py \
@@ -149,7 +152,7 @@ python3 ../train-final.py \
   --model "$MODEL" \
   --epochs $FINAL_EPOCHS \
   --device "$DEVICE" \
-  --bg-mode "$BG_MODE" \
+  --bg-mode "$BG_MODE_BEST" \
   --incorrect-class "$INCORRECT_CLASS" \
   --hyp ./best_hyperparameters.yaml \
   --project ./final_model
