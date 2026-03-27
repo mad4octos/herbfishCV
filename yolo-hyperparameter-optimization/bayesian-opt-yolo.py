@@ -19,22 +19,19 @@ from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
 from yolo_callbacks import LossPlotCallbacks
 
+# Fixed augmentation values applied in every trial and final training
+FIXED_AUG_PARAMS = {
+    "flipud": 0.5,  # ultralytics default is 0.0
+    "scale": 0.0,   # ultralytics default is 0.5; avoid downscaling (avg image 111×125 px)
+}
+
 # Default hyperparameter ranges - these will be passed directly to the YOLO train method
 DEFAULT_HYP_RANGES = {
     "lr0": (0.001, 0.1),  # Initial learning rate
     "lrf": (0.01, 0.5),  # final LR as fraction of lr0
     "momentum": (0.8, 0.99),  # SGD momentum
     "weight_decay": (0.0001, 0.01),  # Weight decay
-    "hsv_h": (0.0, 0.1),  # HSV hue augmentation
-    "hsv_s": (0.0, 0.9),  # HSV saturation augmentation
-    "hsv_v": (0.0, 0.9),  # HSV value augmentation
-    "degrees": (0.0, 45.0),  # Rotation augmentation
-    "translate": (0.0, 0.2),  # Translation augmentation
-    "scale": (0.0, 0.9),  # Scale augmentation
-    "fliplr": (0.0, 0.5),  # Horizontal flip probability
-    "flipud": (0.0, 0.5),
     "dropout": (0.0, 0.5),  # Dropout rate
-    "mixup": (0.0, 0.5),
 }
 
 
@@ -53,6 +50,13 @@ def objective(trial: Trial, args):
     train_args["deterministic"] = True
     train_args["trainer"] = RGBClassificationTrainer
     train_args["workers"] = args.workers
+
+    train_args.update(FIXED_AUG_PARAMS)
+
+    # Ultralytics uses auto_augment=randaugment by default, which includes the following transformations:
+    # Identity, ShearX, ShearY, TranslateX, TranslateY, Rotate, Brightness, Color, Contrast, Sharpness, Posterize, 
+    # Solarize, AutoContrast, Equalize
+
 
     # Add hyperparameters that will be directly passed to train method
     for param_name, param_range in DEFAULT_HYP_RANGES.items():
@@ -215,6 +219,7 @@ def main():
     best_hyp["batch"] = best_params.get("batch", 16)
     best_hyp["imgsz"] = best_params.get("imgsz", 224)
     best_hyp["bg_mode"] = best_params.get("bg_mode", "overlay")
+    best_hyp.update(FIXED_AUG_PARAMS)
 
     with open("best_hyperparameters.yaml", "w") as f:
         yaml.dump(best_hyp, f)
