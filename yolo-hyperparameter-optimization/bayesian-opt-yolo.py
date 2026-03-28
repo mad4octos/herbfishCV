@@ -203,10 +203,15 @@ def main():
     if not model_path.exists() and not args.model.startswith("yolo"):
         print(f"WARNING: Model path {args.model} does not exist!")
 
+    project_path = Path(args.project).resolve()
+    project_path.mkdir(parents=True, exist_ok=True)
+    storage = f"sqlite:///{project_path}/optuna_study.db"
+
     study = optuna.create_study(
         direction="maximize",
         study_name="yolo_bayesian_optimization",
         sampler=optuna.samplers.TPESampler(seed=42),
+        storage=storage,
     )
 
     print(f"Starting Bayesian Optimization with {args.trials} trials")
