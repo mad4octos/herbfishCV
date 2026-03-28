@@ -116,18 +116,9 @@ def objective(trial: Trial, args):
 
 def evaluate_best_model(best_trial: FrozenTrial, args):
     """Evaluate the best model on the test split of the training dataset."""
-    # Get the best hyperparameters
-    best_params = {
-        param: best_trial.params.get(
-            param, (DEFAULT_HYP_RANGES[param][0] + DEFAULT_HYP_RANGES[param][1]) / 2
-        )
-        for param in DEFAULT_HYP_RANGES
-    }
-    best_params["batch"] = best_trial.params.get("batch", 16)
-    best_params["imgsz"] = best_trial.params.get("imgsz", 224)
-
-    # Add specific parameters that were tuned
-    batch_size = best_params["batch"]
+    batch_size = best_trial.params.get("batch", 16)
+    imgsz = best_trial.params.get("imgsz", 224)
+    bg_mode = best_trial.params.get("bg_mode", "overlay")
 
     # Path to the best model from the optimization
     best_model_path = (
@@ -136,7 +127,7 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
 
     # Initialize the model with the best weights
     if best_model_path.exists():
-        RGBClassificationTrainer.bg_mode = best_trial.params.get("bg_mode", "overlay")
+        RGBClassificationTrainer.bg_mode = bg_mode
         model = YOLO(str(best_model_path))
 
         header = (
@@ -149,9 +140,11 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
             model,
             Path(args.data),
             batch_size,
+            imgsz,
             args.incorrect_class,
             header,
             Path(args.project) / "best_trial_results.txt",
+            bg_mode=bg_mode,
         )
     else:
         print(f"Best model weights not found at {best_model_path}")

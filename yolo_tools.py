@@ -1,12 +1,16 @@
 # Standard library imports
 from pathlib import Path
+from types import SimpleNamespace
 
 # External imports
 import matplotlib.pyplot as plt
 import torch
 from sklearn.metrics import classification_report
+from torch.utils.data import DataLoader
 from ultralytics import YOLO
-from ultralytics.models.yolo.classify.val import ClassificationValidator
+
+# Local imports
+from yolo_dataset import RGBAClassificationDataset
 
 """
 Ultralytics' built-in .val() evaluates classification accuracy using argmax
@@ -136,13 +140,29 @@ def get_targets_and_confs(
     )
 
 
+def _make_rgba_dataloader(
+    data_path: Path, batch_size: int, bg_mode: str, imgsz: int
+) -> DataLoader:
+    dataset_args = SimpleNamespace(imgsz=imgsz, cache=False, fraction=1.0)
+    dataset = RGBAClassificationDataset(
+        root=str(data_path),
+        args=dataset_args,
+        augment=False,
+        prefix=data_path.name,
+        bg_mode=bg_mode,
+    )
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+
 def evaluate_and_report(
     model: YOLO,
     data_root: Path,
     batch_size: int,
+    imgsz: int,
     incorrect_class: str,
     header: str,
     report_path: Path,
+    bg_mode: str = "gray",
 ) -> tuple[float, float]:
     """
     Find the best confidence threshold on the val split, evaluate on the test
@@ -151,12 +171,8 @@ def evaluate_and_report(
     Returns:
         best_threshold, best_f1
     """
-    val_dataloader = ClassificationValidator().get_dataloader(
-        data_root / "val", batch_size
-    )
-    test_dataloader = ClassificationValidator().get_dataloader(
-        data_root / "test", batch_size
-    )
+    val_dataloader = _make_rgba_dataloader(data_root / "val", batch_size, bg_mode, imgsz)
+    test_dataloader = _make_rgba_dataloader(data_root / "test", batch_size, bg_mode, imgsz)
     val_targets, val_confs = get_targets_and_confs(
         model, val_dataloader, positive_class_name=incorrect_class
     )
