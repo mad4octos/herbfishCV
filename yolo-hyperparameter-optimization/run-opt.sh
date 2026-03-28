@@ -8,7 +8,6 @@ command -v python3 >/dev/null 2>&1 || { echo "Python 3 is required but not insta
 
 # Parse command line arguments
 DATA=""
-MODEL="yolo11n-cls.pt"
 EPOCHS=10
 FINAL_EPOCHS=30
 TRIALS=100
@@ -22,11 +21,6 @@ while [[ $# -gt 0 ]]; do
   case $key in
     --data)
       DATA="$2"
-      shift
-      shift
-      ;;
-    --model)
-      MODEL="$2"
       shift
       shift
       ;;
@@ -75,17 +69,8 @@ done
 # Check if data argument is provided
 if [ -z "$DATA" ]; then
   echo "Error: --data argument is required."
-  echo "Usage: ./run-opt.sh --data path/to/data [--model yolo11n-cls.pt] [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect] [--fraction 1.0]"
+  echo "Usage: ./run-opt.sh --data path/to/data [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect] [--fraction 1.0]"
   exit 1
-fi
-
-# Ensure model path is absolute
-if [[ "$MODEL" != /* ]] && [[ "$MODEL" != ./* ]]; then
-  if [ -f "$MODEL" ]; then
-    MODEL="$(pwd)/$MODEL"
-    echo "Converted model path to absolute: $MODEL"
-  fi
-  # Otherwise, assume it's a model name from the YOLO model hub
 fi
 
 # Ensure data path is absolute
@@ -104,7 +89,7 @@ echo "========================================"
 echo "YOLO Classification Optimization Pipeline"
 echo "========================================"
 echo "Data:              $DATA"
-echo "Model:             $MODEL"
+echo "Models searched:   yolo11n-cls.pt, yolo11s-cls.pt"
 echo "Epochs per trial:  $EPOCHS"
 echo "Final epochs:      $FINAL_EPOCHS"
 echo "Number of trials:  $TRIALS"
@@ -120,7 +105,6 @@ echo "========================================"
 echo "[1/2] Running Bayesian hyperparameter optimization..."
 python3 ../bayesian-opt-yolo.py \
   --data "$DATA" \
-  --model "$MODEL" \
   --epochs $EPOCHS \
   --trials $TRIALS \
   --device $DEVICE \
@@ -144,7 +128,6 @@ echo "Best bg_mode from optimization: $BG_MODE_BEST"
 echo "[2/2] Training final model with best hyperparameters..."
 python3 ../train-final.py \
   --data "$DATA" \
-  --model "$MODEL" \
   --epochs $FINAL_EPOCHS \
   --device "$DEVICE" \
   --bg-mode "$BG_MODE_BEST" \

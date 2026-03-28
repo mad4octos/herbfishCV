@@ -36,7 +36,6 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 | Argument | Default | Description |
 |---|---|---|
 | `--data` | *(required)* | Path to dataset root directory (with `train/val/test` subdirectories) |
-| `--model` | `yolo11n-cls.pt` | Initial YOLO classification model path or hub name |
 | `--epochs` | `10` | Number of epochs per optimization trial |
 | `--final-epochs` | `30` | Number of epochs for final model training |
 | `--trials` | `100` | Number of Optuna optimization trials |
@@ -50,7 +49,6 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 ```bash
 ./run-opt.sh \
   --data ../datasets/fish_classification \
-  --model yolo11n-cls.pt \
   --epochs 10 \
   --final-epochs 30 \
   --trials 100 \
@@ -67,6 +65,7 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 
 | Parameter | Type | Range / Options |
 |---|---|---|
+| `model` | categorical | `yolo11n-cls.pt`, `yolo11s-cls.pt` |
 | `lrf` | log-uniform float | [0.001, 0.1] |
 | `weight_decay` | float | [0.0001, 0.01] |
 | `dropout` | float | [0.0, 0.5] |

@@ -72,13 +72,14 @@ def main():
     for key, value in hyp.items():
         print(f"  {key}: {value}")
 
-    # bg_mode is a custom trainer arg, not a YOLO train arg — remove before passing to model.train()
+    # bg_mode and model are not YOLO train args — remove before passing to model.train()
     bg_mode = hyp.pop("bg_mode", args.bg_mode)
     RGBClassificationTrainer.bg_mode = bg_mode
+    model_name = hyp.pop("model", args.model)
 
     # Initialize the model
-    print(f"\nInitializing model: {args.model}")
-    model = YOLO(args.model)
+    print(f"\nInitializing model: {model_name}")
+    model = YOLO(model_name)
 
     # Train with best hyperparameters
     print("\nStarting training with best hyperparameters...")
@@ -99,7 +100,7 @@ def main():
     hyp_lines = "\n".join(f"  {k}: {v}" for k, v in hyp.items())
     header = (
         f"FINAL TRAINING RESULTS\n"
-        f"Model: {args.model}\n"
+        f"Model: {model_name}\n"
         f"Epochs: {args.epochs}\n"
         f"Hyperparameters file: {args.hyp}\n"
         f"Hyperparameters:\n{hyp_lines}\n\n"

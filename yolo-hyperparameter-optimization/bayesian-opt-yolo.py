@@ -19,6 +19,9 @@ from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
 from yolo_callbacks import LossPlotCallbacks
 
+# Model architectures to search over
+MODEL_CANDIDATES = ["yolo11n-cls.pt", "yolo11s-cls.pt"]
+
 # Fixed augmentation values applied in every trial and final training
 FIXED_AUG_PARAMS = {
     "flipud": 0.5,  # ultralytics default is 0.0
@@ -85,8 +88,9 @@ def objective(trial: Trial, args):
     RGBClassificationTrainer.bg_mode = bg_mode
 
     try:
-        # Use explicit model path from args directly
-        model = YOLO(args.model)
+        # Sample model architecture as a categorical hyperparameter
+        model_name = trial.suggest_categorical("model", MODEL_CANDIDATES)
+        model = YOLO(model_name)
 
         cbs = LossPlotCallbacks(
             figpath=f"{args.project}/trial_{trial.number}/loss_plot.png",
@@ -97,8 +101,7 @@ def objective(trial: Trial, args):
         model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
         model.add_callback("on_val_end", cbs.on_val_end)
 
-        # Print model path being used for debugging
-        print(f"Loading model from: {args.model}")
+        print(f"Loading model from: {model_name}")
 
         # Train the model with the sampled hyperparameters directly passed
         results = model.train(**train_args)
@@ -166,9 +169,6 @@ def main():
         help="Path to dataset root directory (with train/val/test subdirectories)",
     )
     parser.add_argument(
-        "--model", type=str, default="yolo11n-cls.pt", help="Initial model path"
-    )
-    parser.add_argument(
         "--epochs", type=int, default=100, help="Number of epochs per trial"
     )
     parser.add_argument(
@@ -195,13 +195,7 @@ def main():
     )
     args = parser.parse_args()
 
-    # Print model path for debugging
-    print(f"Using model: {args.model}")
-
-    # Check if model path exists
-    model_path = Path(args.model)
-    if not model_path.exists() and not args.model.startswith("yolo"):
-        print(f"WARNING: Model path {args.model} does not exist!")
+    print(f"Searching over models: {MODEL_CANDIDATES}")
 
     project_path = Path(args.project).resolve()
     project_path.mkdir(parents=True, exist_ok=True)
@@ -234,6 +228,7 @@ def main():
     best_hyp["batch"] = best_params.get("batch", 16)
     best_hyp["imgsz"] = best_params.get("imgsz", 224)
     best_hyp["bg_mode"] = best_params.get("bg_mode", "overlay")
+    best_hyp["model"] = best_params.get("model", MODEL_CANDIDATES[0])
     best_hyp.update(FIXED_AUG_PARAMS)
 
     with open("best_hyperparameters.yaml", "w") as f:
