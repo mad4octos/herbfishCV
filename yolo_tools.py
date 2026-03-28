@@ -141,9 +141,9 @@ def get_targets_and_confs(
 
 
 def _make_rgba_dataloader(
-    data_path: Path, batch_size: int, bg_mode: str, imgsz: int
+    data_path: Path, batch_size: int, bg_mode: str, imgsz: int, scale: float = 0.0
 ) -> DataLoader:
-    dataset_args = SimpleNamespace(imgsz=imgsz, cache=False, fraction=1.0)
+    dataset_args = SimpleNamespace(imgsz=imgsz, cache=False, fraction=1.0, scale=scale)
     dataset = RGBAClassificationDataset(
         root=str(data_path),
         args=dataset_args,
@@ -163,6 +163,7 @@ def evaluate_and_report(
     header: str,
     report_path: Path,
     bg_mode: str = "gray",
+    scale: float = 0.0,
 ) -> tuple[float, float]:
     """
     Find the best confidence threshold on the val split, evaluate on the test
@@ -171,8 +172,8 @@ def evaluate_and_report(
     Returns:
         best_threshold, best_f1
     """
-    val_dataloader = _make_rgba_dataloader(data_root / "val", batch_size, bg_mode, imgsz)
-    test_dataloader = _make_rgba_dataloader(data_root / "test", batch_size, bg_mode, imgsz)
+    val_dataloader = _make_rgba_dataloader(data_root / "val", batch_size, bg_mode, imgsz, scale)
+    test_dataloader = _make_rgba_dataloader(data_root / "test", batch_size, bg_mode, imgsz, scale)
     val_targets, val_confs = get_targets_and_confs(
         model, val_dataloader, positive_class_name=incorrect_class
     )

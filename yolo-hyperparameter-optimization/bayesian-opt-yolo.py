@@ -145,6 +145,7 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
             header,
             Path(args.project) / "best_trial_results.txt",
             bg_mode=bg_mode,
+            scale=FIXED_AUG_PARAMS["scale"],
         )
     else:
         print(f"Best model weights not found at {best_model_path}")

@@ -88,6 +88,7 @@ def main():
 
     batch_size = hyp.get("batch", 16)
     imgsz = hyp.get("imgsz", 224)
+    scale = hyp.get("scale", 0.0)
     hyp_lines = "\n".join(f"  {k}: {v}" for k, v in hyp.items())
     header = (
         f"FINAL TRAINING RESULTS\n"
@@ -105,6 +106,7 @@ def main():
         header,
         Path(args.project) / "final_training_results.txt",
         bg_mode=bg_mode,
+        scale=scale,
     )
 
 
