@@ -52,7 +52,6 @@ def objective(trial: Trial, args):
     train_args["trainer"] = RGBClassificationTrainer
     train_args["workers"] = args.workers
     train_args["fraction"] = args.fraction
-    train_args["cache"] = True
 
     # The optimizer, learning rate (lr0) and momentum will be auto-selected.
     # The optimizer is chosen between AdamW and SGD based on the number of training iterations.
