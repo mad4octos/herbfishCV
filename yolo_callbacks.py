@@ -124,14 +124,14 @@ class LossPlotCallbacks:
             x = np.linspace(0, 1, 1000)
 
             f1_mean = smooth(f1_curve.mean(0), 0.1)
-            i = f1_mean.argmax()  # max F1 index
+            best_f1_idx = f1_mean.argmax()
 
             #################################
             # Store values to print them later
             #################################
 
             # Overall max f1 and conf
-            self.max_conf_for_f1 = x[i]
+            self.max_conf_for_f1 = x[best_f1_idx]
             self.f1_max = f1_mean.max()
 
             # Per-class max f1 and conf
