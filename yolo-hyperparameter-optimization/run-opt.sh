@@ -127,6 +127,7 @@ python3 ../train-final.py \
   --epochs $FINAL_EPOCHS \
   --device "$DEVICE" \
   --incorrect-class "$INCORRECT_CLASS" \
+  --fraction $FRACTION \
   --hyp ./best_hyperparameters.yaml \
   --project ./final_model
 
