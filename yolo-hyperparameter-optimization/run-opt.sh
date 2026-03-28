@@ -149,7 +149,6 @@ python3 ../train-final.py \
   --device "$DEVICE" \
   --bg-mode "$BG_MODE_BEST" \
   --incorrect-class "$INCORRECT_CLASS" \
-  --fraction $FRACTION \
   --hyp ./best_hyperparameters.yaml \
   --project ./final_model
 
