@@ -22,9 +22,6 @@ def main():
         description="Final training with best hyperparameters"
     )
     parser.add_argument(
-        "--model", type=str, default="yolo11n-cls.pt", help="Model path"
-    )
-    parser.add_argument(
         "--data",
         type=str,
         required=True,
@@ -75,7 +72,7 @@ def main():
     # bg_mode and model are not YOLO train args — remove before passing to model.train()
     bg_mode = hyp.pop("bg_mode", args.bg_mode)
     RGBClassificationTrainer.bg_mode = bg_mode
-    model_name = hyp.pop("model", args.model)
+    model_name = hyp.pop("model")
 
     # Initialize the model
     print(f"\nInitializing model: {model_name}")
