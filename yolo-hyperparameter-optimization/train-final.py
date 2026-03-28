@@ -41,13 +41,6 @@ def main():
         help="Path to hyperparameters YAML",
     )
     parser.add_argument(
-        "--bg-mode",
-        type=str,
-        default="overlay",
-        choices=["gray", "overlay"],
-        help="Background mode for RGBA images passed to RGBClassificationTrainer",
-    )
-    parser.add_argument(
         "--incorrect-class",
         type=str,
         default="incorrect",
@@ -70,7 +63,7 @@ def main():
         print(f"  {key}: {value}")
 
     # bg_mode and model are not YOLO train args — remove before passing to model.train()
-    bg_mode = hyp.pop("bg_mode", args.bg_mode)
+    bg_mode = hyp.pop("bg_mode")
     RGBClassificationTrainer.bg_mode = bg_mode
     model_name = hyp.pop("model")
 
