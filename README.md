@@ -293,6 +293,40 @@ Image filenames in the output are prefixed with the `observation_id` value from 
 
 ---
 
+##### scripts/coco_to_sam2_masks.py
+
+Converts COCO instance annotations (as output by the [modified Labelme](https://github.com/mad4octos/LabelMe)) to SAM2 frame masks in the MOSE/DAVIS dataset format. Each frame is saved as a palette-indexed PNG where each pixel value corresponds to an object ID (background = 0, void/invalid = 254).
+
+```bash
+python scripts/coco_to_sam2_masks.py \
+    --coco-file path/to/instances_train.json \
+    --output-dir path/to/output \
+    --video-name my_video
+```
+
+**Arguments:**
+
+| Argument | Description |
+|---|---|
+| `--coco-file` | Path to the COCO annotations file (`instances_train.json`). |
+| `--output-dir` | Root output directory. Masks are saved under `<output-dir>/Annotations/<video-name>/`. |
+| `--video-name` | Video/sequence name used as the subfolder under `Annotations/`. |
+
+**Output layout:**
+
+```
+<output-dir>/
+└── Annotations/
+    └── <video-name>/
+        ├── 00001.png
+        ├── 00002.png
+        └── ...
+```
+
+Each annotation must have an `ObjID` attribute (integer ≥ 1). If multiple annotations on the same frame have overlapping masks, the annotation with the higher `ObjID` takes precedence.
+
+---
+
 ### Notebooks
 
 ##### convert_masks.ipynb
