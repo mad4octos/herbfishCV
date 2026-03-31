@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 from collections import defaultdict
+import warnings
 
 # External imports
 import cv2
@@ -16,6 +17,7 @@ import torch
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 from thefuzz import fuzz
+from statsmodels.tools.sm_exceptions import InterpolationWarning
 
 # Local imports
 from blob import BlobInfo
@@ -326,7 +328,11 @@ def kpss_test(timeseries, significance_level=0.05):
     Modified from:
     https://www.statsmodels.org/dev/examples/notebooks/generated/stationarity_detrending_adf_kpss.html
     """
-    kpsstest = kpss(timeseries, regression="c", nlags="auto")
+
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*p-value.*", category=InterpolationWarning)
+        kpsstest = kpss(timeseries, regression="c", nlags="auto")
     kpss_output = pd.Series(
         kpsstest[0:3], index=["Test Statistic", "p-value", "Lags Used"]
     )
