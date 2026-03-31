@@ -252,4 +252,7 @@ class ClassifierConfig:
     model_weights_path = Path(<FILL_ME>)
 
     # Masked fish crop classifier confidence threshold
-    classifier_conf: float = 0.25
+    incorrect_cls_conf_thresh: float = 0.236  # corresponds to the class incorrect
+
+    correct_class: str = "correct"
+    incorrect_class: str = "incorrect"

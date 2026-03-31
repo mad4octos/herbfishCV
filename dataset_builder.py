@@ -49,8 +49,9 @@ class DatumaroDatasetBuilder:
         blob_rules: Iterable[BlobRule],
         window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
-        target_class: list[str],
-        classifier_conf: float = 0.5,
+        correct_class: str,
+        incorrect_class: str,
+        incorrect_cls_conf_thresh: float = 0.5,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
         filename_num_zeros: int = 8,
@@ -96,13 +97,14 @@ class DatumaroDatasetBuilder:
         self.filename_num_zeros = filename_num_zeros
         self.verbose = verbose
         self.classifier = classifier
-        self.classifier_conf = classifier_conf
+        self.incorrect_cls_conf_thresh = incorrect_cls_conf_thresh
         self.dataset_items: list[datumaro.components.dataset_base.DatasetItem] = []
         self.count_empty_instance_masks = 0
         self.count_frames_with_errors = 0
         self.notebook_debug = notebook_debug
         self.no_auto = no_auto
-        self.target_class = target_class
+        self.correct_class = correct_class
+        self.incorrect_class = incorrect_class
         self.max_frames = max_frames
         self.start_frame = start_frame
         self.blob_rules = blob_rules
@@ -112,6 +114,7 @@ class DatumaroDatasetBuilder:
             self.anomaly_rules, logger=self.logger, window_size=window_size
         )
         self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
+        self.class_to_index = {cls: idx for idx, cls in self.classifier.names.items()}
 
     def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
         """
@@ -563,15 +566,17 @@ class DatumaroDatasetBuilder:
 
         filtered_blobs = []
         for blob, masked_patch in zip(blobs, patches):
-            results = self.classifier(
-                masked_patch, verbose=False, conf=self.classifier_conf
-            )[0]
-            classes = results.names
-            prediction = classes[results.probs.top1]
-            # conf = results.probs.top1conf.item()
+            results = self.classifier(masked_patch, verbose=False)[0]
+            incorrect_class_index = self.class_to_index[self.correct_class]
+            incorrect_class_pred_conf = results.probs.data[incorrect_class_index].item()
+            pred_class = (
+                self.incorrect_class
+                if incorrect_class_pred_conf >= self.incorrect_cls_conf_thresh
+                else self.correct_class
+            )
 
-            if prediction in self.target_class:
-                blob.predicted_class = prediction
+            if pred_class == self.correct_class:
+                blob.predicted_class = pred_class
                 filtered_blobs.append(blob)
                 if self.notebook_debug:
                     cv2_imshow(masked_patch)
