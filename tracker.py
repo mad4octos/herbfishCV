@@ -40,14 +40,14 @@ class FishTracker:
     def log_metrics(self):
         """Pretty-print metrics deque to the logger."""
         if not self.metrics:
-            self.logger.info("No metrics available.")
+            self.logger.debug("No metrics available.")
             return
 
         lines = ["BlobInfo list (most recent last):"]
         for m in self.metrics:
             lines.append(str(m))
 
-        self.logger.info("\n".join(lines))
+        self.logger.debug("\n".join(lines))
 
     def predict(self) -> AnomaliesResultsDict:
         """Check for anomalies in the tracked fish properties."""
@@ -89,7 +89,7 @@ class FishTracker:
         filtered: deque[BlobInfo] = deque(maxlen=self.window_size)
         for b in self.metrics:
             if b.frame_idx < (current_frame_idx - self.window_size):
-                print(f"Removing old blob {b}")
+                self.logger.debug(f"Removing old blob {b}")
             else:
                 filtered.append(b)
         self.metrics = filtered
@@ -173,7 +173,7 @@ class FishTrackerManager:
                 alive_trackers[obj_id] = tracker
             else:
                 removed_ids.append(obj_id)
-                print(
+                self.logger.debug(
                     f"Removing inactive tracker: fish_id={obj_id}, "
                     f"cycles_without_update={tracker.cycles_since_update}"
                 )
