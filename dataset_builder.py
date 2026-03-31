@@ -540,8 +540,7 @@ class DatumaroDatasetBuilder:
         for blob in get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx):
             for rule in self.blob_rules:
                 if not rule(blob):
-                    if self.verbose:
-                        print(f"  skipping blob {blob.blob_num}: {rule.explain(blob)}")
+                    self.logger.info(f"  skipping blob {blob.blob_num}: {rule.explain(blob)}")
                     break
             else:
                 valid_blobs.append(blob)
@@ -580,6 +579,8 @@ class DatumaroDatasetBuilder:
                 filtered_blobs.append(blob)
                 if self.notebook_debug:
                     cv2_imshow(masked_patch)
+            else:
+                self.logger.info(f"  skipping blob {blob.blob_num}: classified as {pred_class}")
 
         return filtered_blobs
 

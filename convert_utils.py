@@ -290,8 +290,8 @@ def get_label_id(chunked_df, col_class_name, col_instance_id, obj_id, label_cate
 
     if matching_rows.empty:
         raise ValueError(
-            f"Object ID '{obj_id}' not found in DataFrame. "
-            f"Available IDs: {chunked_df[col_instance_id].unique().tolist()}"
+            f"ObjID '{obj_id}' not found in annotations file. "
+            f"Available ObjIDs in annotations file: {chunked_df[col_instance_id].unique().tolist()}"
         )
     label_str = matching_rows.iloc[0]
 
