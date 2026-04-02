@@ -7,7 +7,7 @@
 #SBATCH --error=./logs/%j.err
 #SBATCH --qos=normal
 #SBATCH --account=ucb689_peak1
-#SBATCH --mail-user="youremail@colorado.edu"
+#SBATCH --mail-user="your-email-address"
 
 module purge
 module load miniforge

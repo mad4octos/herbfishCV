@@ -352,7 +352,7 @@ class MultiBuilder:
             )
             dataset = builder.build()
 
-            coco_out = run_dir / "dataset_coco"
+            coco_out = run_dir / obs_id
             dataset.export(str(coco_out), format="coco", save_media=True, tasks="instances")
 
             print(f"Finished: '{obs_id}', results written to '{export_root_path}'.")
