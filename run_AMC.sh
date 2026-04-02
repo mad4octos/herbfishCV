@@ -58,10 +58,3 @@ for i in "${!errors_obs_ids[@]}"; do
       --images-dirpath="$images_dirpath"
 done
       
-
-#python 	multi_dataset_builder.py --manual --ignore-missing-observation-ids --extracted-fps=3 --final-fps=3 --original-fps=24 \
-#  --errors-csv-filepath="/scratch/alpine/maha7624/herbfishCV/stationary/Stationary Annotation Data - SAM2_errors.csv" \
-#  --sam2-start=0 --errors-obs-id="JGL_042724_site1_east_B_Right_GX110093" \
-#  --masks-filepath="/scratch/alpine/maha7624/SAM2.1/stationary/masks/JGL_042724_site1_east_B_Right_GX110093_masks.pkl" \
-#  --annot-filepath="/scratch/alpine/maha7624/SAM2.1/stationary/annotations/JGL_04-27-2024_site1_east_B_Right_GX110093_annotations1.npy" \
-#  --images-dirpath="/scratch/alpine/maha7624/SAM2.1/stationary/raw_vids/GX110093_frames"
