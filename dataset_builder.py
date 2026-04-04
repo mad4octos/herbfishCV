@@ -323,6 +323,26 @@ class DatumaroDatasetBuilder:
         self._print_statistics()
         return dataset
 
+    def _load_frame_image(self, extracted_frame_idx: int) -> tuple:
+        """Load a frame image by index"""
+        filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
+        image_filepath = self.images_path / filename
+        if not image_filepath.exists():
+            # look for any file that ends with the expected filename
+            matches = list(self.images_path.glob(f"*{filename}"))
+            if not matches:
+                raise FileNotFoundError(
+                    f"File '{image_filepath}' doesn't exist, and no prefixed"
+                    f" variants matching '*{filename}' were found!"
+                )
+            image_filepath = matches[0]  # take the first match
+        input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
+        if input_image is None:
+            raise IOError(
+                f"File '{image_filepath}' exists but cannot be read as an image."
+            )
+        return filename, image_filepath, input_image
+
     def _process_frame(self, extracted_frame_idx: int, frame_masks: dict) -> None:
         """
         Process a single frame and its associated masks.
@@ -352,25 +372,10 @@ class DatumaroDatasetBuilder:
             )
             self.count_frames_with_errors += 1
             return
-
-        filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
-        image_filepath = self.images_path / filename
-        if not image_filepath.exists():
-            # look for any file that ends with the expected filename
-            matches = list(self.images_path.glob(f"*{filename}"))
-            if not matches:
-                error_message = (
-                    f"File '{image_filepath}' doesn't exist, and no prefixed"
-                    f" variants matching '*{filename}' were found!"
-                )
-                raise FileNotFoundError(error_message)
-            image_filepath = matches[0]  # take the first match
-        input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
-        if input_image is None:
-            error_message = (
-                f"File '{image_filepath}' exists but cannot be read as an image."
-            )
-            raise IOError(error_message)
+        
+        filename, image_filepath, input_image = self._load_frame_image(
+            extracted_frame_idx
+        )
 
         # FIXME: too much functionality inside here
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
