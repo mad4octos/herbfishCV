@@ -51,7 +51,7 @@ import numpy as np
 import numpy.typing as npt
 
 # Local imports
-from coco_types import CocoAnnotation, CocoImage, CocoRLE
+from coco_types import CocoAnnotation, CocoImage, CompressedRLE
 from pascal_colormap import pascal_colormap
 from PIL import Image
 from supervision.dataset.utils import rle_to_mask
@@ -65,7 +65,7 @@ def _decode_segmentation(
     seg = annotation.segmentation
     resolution_wh = (image.width, image.height)
 
-    if isinstance(seg, CocoRLE):  # Compressed RLE
+    if isinstance(seg, CompressedRLE):
         rle = np.array(seg.counts, dtype=np.int64)
         return rle_to_mask(rle=rle, resolution_wh=resolution_wh).astype(bool)
 
