@@ -10,20 +10,26 @@ import cv2
 import datumaro.components.dataset
 import datumaro.components.dataset_base
 import datumaro.components.media
-from datumaro.components.annotation import RleMask, Annotation
 import datumaro.util.mask_tools as mask_tools
 import numpy as np
 import pandas as pd
+from datumaro.components.annotation import Annotation, RleMask
 from tqdm import tqdm
+from ultralytics import YOLO
 
 # Local imports
 from anomaly_rules import FishAnomalyRule
+from blob import BlobInfo
 from blob_filter_rules import BlobRule
 from common import cv2_imshow, is_empty_sparse_tensor, sparse_mask_tensor_to_dense_numpy
-from convert_utils import _get_frame_filename, get_blobs_from_mask, get_label_id
+from convert_utils import (
+    MasksType,
+    _get_frame_filename,
+    get_blobs_from_mask,
+    get_label_id,
+)
 from plot_utils import draw_mask_overlay
 from tracker import FishTrackerManager
-from blob import BlobInfo
 
 
 class DatumaroDatasetBuilder:
@@ -38,14 +44,14 @@ class DatumaroDatasetBuilder:
     def __init__(
         self,
         obs_id: str,  # this is basically the name of the run
-        masks: dict,
+        masks: MasksType,
         error_frames: list[int],
         chunked_df: pd.DataFrame,
         annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         images_path: Path,
         export_root_path: Path,
-        classifier,
+        classifier: YOLO | None,
         blob_rules: Iterable[BlobRule],
         window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
@@ -193,7 +199,6 @@ class DatumaroDatasetBuilder:
         # .abs() makes them all positive distances, and .idxmin() returns the DataFrame
         # index of the row with the smallest distance.
         closest_idx = (obj_rows["Frame"] - original_frame).abs().idxmin()
-        
         gt_location: list[float] = obj_rows.loc[closest_idx, "Location"]
 
         gt_obj_id: str = obj_rows.loc[closest_idx, "ObjID"]
@@ -224,7 +229,7 @@ class DatumaroDatasetBuilder:
                 isColor=True,
             )
             self.logger.info(f"Video writer initialized. Output file: '{filepath}'")
-        except Exception as e:
+        except Exception:
             self.logger.exception("Problem during video writer initialization")
 
     def setup_logging(self, log_to_console=True, level: int = logging.INFO):
@@ -281,7 +286,9 @@ class DatumaroDatasetBuilder:
             A Datumaro Dataset object containing DatasetItems with bounding box annotations.
         """
         if self.no_auto:
-            self.logger.info("--no-auto: skipping automatic mask cleaning (blob filters, classifier, anomaly detection).")
+            self.logger.info(
+                "--no-auto: skipping automatic mask cleaning (blob filters, classifier, anomaly detection)."
+            )
 
         if not self.error_frames:
             self.logger.warning(
@@ -363,7 +370,7 @@ class DatumaroDatasetBuilder:
                 f"Skipping frame {extracted_frame_idx} (keeping every {self.frame_step}th frame)"
             )
             return
-        
+
         self.logger.info(f"Processing frame {extracted_frame_idx}...")
         filename, image_filepath, input_image = self._load_frame_image(
             extracted_frame_idx
@@ -431,9 +438,9 @@ class DatumaroDatasetBuilder:
         """
         Extract blobs from frame masks, optionally applying automatic cleaning.
 
-        When ``self.no_auto`` is False (default), each mask goes through blob
+        When `self.no_auto` is False (default), each mask goes through blob
         filtering (area/size rules), YOLO classification, and anomaly detection
-        before being accepted. When ``self.no_auto`` is True, all non-empty
+        before being accepted. When `self.no_auto` is True, all non-empty
         masks are accepted as-is, keeping only the largest blob per object.
         """
         original_image = input_image.copy()
@@ -450,7 +457,9 @@ class DatumaroDatasetBuilder:
             if self.no_auto:
                 # Skip automatic cleaning: no blob filtering, classification, or anomaly detection.
                 # Just extract all blobs and keep the largest one per object.
-                raw_blobs = list(get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx))
+                raw_blobs = list(
+                    get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx)
+                )
                 if raw_blobs:
                     dominant_blob = max(raw_blobs, key=lambda b: b.area)
                     self.draw_bbox_and_id(input_image, dominant_blob, "white")
@@ -501,7 +510,10 @@ class DatumaroDatasetBuilder:
                             [f"{a['type']}({a['value']})" for a in results["anomalies"]]
                         )
                         self.draw_bbox_and_id(
-                            input_image, dominant_blob, "red", extra_text=f"({anomalies}"
+                            input_image,
+                            dominant_blob,
+                            "red",
+                            extra_text=f"({anomalies}",
                         )
 
                     else:
@@ -558,7 +570,9 @@ class DatumaroDatasetBuilder:
         for blob in get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx):
             for rule in self.blob_rules:
                 if not rule(blob):
-                    self.logger.info(f"  skipping blob {blob.blob_num}: {rule.explain(blob)}")
+                    self.logger.info(
+                        f"  skipping blob {blob.blob_num}: {rule.explain(blob)}"
+                    )
                     break
             else:
                 valid_blobs.append(blob)
@@ -598,7 +612,9 @@ class DatumaroDatasetBuilder:
                 if self.notebook_debug:
                     cv2_imshow(masked_patch)
             else:
-                self.logger.info(f"  skipping blob {blob.blob_num}: classified as {pred_class}")
+                self.logger.info(
+                    f"  skipping blob {blob.blob_num}: classified as {pred_class}"
+                )
 
         return filtered_blobs
 
