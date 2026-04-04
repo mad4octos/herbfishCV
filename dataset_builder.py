@@ -365,20 +365,33 @@ class DatumaroDatasetBuilder:
             return
         
         self.logger.info(f"Processing frame {extracted_frame_idx}...")
+        filename, image_filepath, input_image = self._load_frame_image(
+            extracted_frame_idx
+        )
 
+        blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
+
+        # For error frames, keep the click location by saving an annotation with an empty mask
+        # rather than skipping the frame entirely.
         if extracted_frame_idx in self.error_frames:
+            annotations = self.create_empty_datumaro_annotations(blobs)
+            self.dataset_items.append(
+                datumaro.components.dataset_base.DatasetItem(
+                    id=filename.split(".")[0],
+                    subset="train",
+                    media=datumaro.components.media.Image.from_file(
+                        str(image_filepath)
+                    ),
+                    annotations=annotations,
+                    attributes={"frame": extracted_frame_idx},
+                )
+            )
+
             self.logger.warning(
                 f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
             )
             self.count_frames_with_errors += 1
             return
-        
-        filename, image_filepath, input_image = self._load_frame_image(
-            extracted_frame_idx
-        )
-
-        # FIXME: too much functionality inside here
-        blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
 
         annotations = self.create_datumaro_annotations(blobs)
 
@@ -622,6 +635,40 @@ class DatumaroDatasetBuilder:
                     label=label_id,
                     attributes=attributes,
                 )
+            )
+
+        return output
+
+    def create_empty_datumaro_annotations(
+        self, blobs: list[BlobInfo]
+    ) -> list[Annotation]:
+        """Like create_datumaro_annotations but with an empty (all-zero) mask.
+
+        When `blobs` is empty, produces a single empty-mask annotation using
+        the provided frame_idx, obj_id, w, h so gt_ attributes are still captured.
+        """
+
+        output = []
+        for blob in blobs:
+            label_id = get_label_id(
+                self.chunked_df,
+                self.col_class_name,
+                self.col_instance_id,
+                blob.obj_id,
+                self.label_categories,
+            )
+
+            uncompressed_rle = {"size": [2160, 3840], "counts": b""}
+            attributes: dict[str, int | list[float] | str] = {"ObjID": blob.obj_id}
+            gt = self.get_closest_gt_location(blob.frame_idx, blob.obj_id)
+            if gt is not None:
+                gt_location, gt_obj_id, gt_frame_extracted, gt_frame_original = gt
+                attributes["gt_location"] = gt_location
+                attributes["gt_obj_id"] = gt_obj_id
+                attributes["gt_frame_extracted"] = gt_frame_extracted
+                attributes["gt_frame_original"] = gt_frame_original
+            output.append(
+                RleMask(rle=uncompressed_rle, label=label_id, attributes=attributes)
             )
 
         return output
