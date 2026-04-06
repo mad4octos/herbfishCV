@@ -9,12 +9,12 @@ labelme_types.py at https://github.com/mad4octos/LabelMe/
 """
 
 @dataclass
-class CocoRLE:
+class CompressedRLE:
     counts: list[int]
     size: list[int]
 
     @classmethod
-    def from_dict(cls, d: dict) -> "CocoRLE":
+    def from_dict(cls, d: dict) -> "CompressedRLE":
         return cls(counts=d["counts"], size=d["size"])
 
 
@@ -46,7 +46,7 @@ class CocoAnnotation:
     category_id: int
 
     # Polygon segmentation (iscrowd == 0) OR RLE (iscrowd == 1)
-    segmentation: list[CocoPolygon] | CocoRLE
+    segmentation: list[CocoPolygon] | CompressedRLE
 
     area: float
     bbox: list[float]  # [x, y, width, height]
@@ -71,7 +71,7 @@ class CocoAnnotation:
             id=d["id"],
             image_id=d["image_id"],
             category_id=d["category_id"],
-            segmentation=CocoRLE.from_dict(d["segmentation"])
+            segmentation=CompressedRLE.from_dict(d["segmentation"])
             if isinstance(d["segmentation"], dict)
             else d["segmentation"],
             area=d["area"],

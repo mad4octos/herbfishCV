@@ -1,8 +1,10 @@
+# External mports
+import cv2
+import numpy as np
+import numpy.typing as npt
+import torch
 from IPython import display
 from PIL import Image
-import cv2
-import torch
-import numpy as np
 
 
 def cv2_imshow(a):
@@ -25,7 +27,7 @@ def cv2_imshow(a):
     display.display(Image.fromarray(a))
 
 
-def torch_to_cv2(image: torch.Tensor, is_mask=False) -> np.ndarray:
+def torch_to_cv2(image: torch.Tensor, is_mask=False) -> npt.NDArray[np.uint8]:
     """Convert a PyTorch image tensor to an OpenCV (Numpy) image."""
     image = image.detach()
     if is_mask:
@@ -39,7 +41,9 @@ def torch_to_cv2(image: torch.Tensor, is_mask=False) -> np.ndarray:
     return image.cpu().numpy()
 
 
-def sparse_mask_tensor_to_dense_numpy(sparse_tensor):
+def sparse_mask_tensor_to_dense_numpy(
+    sparse_tensor: torch.Tensor,
+) -> npt.NDArray[np.uint8]:
     """ """
     dense_tensor = sparse_tensor.to_dense()
     return torch_to_cv2(dense_tensor, is_mask=True)

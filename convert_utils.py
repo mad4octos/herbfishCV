@@ -1,27 +1,26 @@
 # Standard Library imports
 import pickle
+import warnings
+from collections import defaultdict
+from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
-from collections import defaultdict
-import warnings
 
 # External imports
 import cv2
 import datumaro.components.dataset_base
-from datumaro.components.annotation import AnnotationType, LabelCategories
 import numpy as np
 import pandas as pd
 import torch
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.stattools import kpss
-from thefuzz import fuzz
+from datumaro.components.annotation import AnnotationType, LabelCategories
 from statsmodels.tools.sm_exceptions import InterpolationWarning
+from statsmodels.tsa.stattools import adfuller, kpss
+from thefuzz import fuzz
 
 # Local imports
 from blob import BlobInfo
-from configuration import ParsedObservationID, ManualObservationID
+from configuration import ManualObservationID, ParsedObservationID
 
 # Type aliases for the masks file
 FrameIndex = int
@@ -37,7 +36,26 @@ class ClickType(IntEnum):
 def get_blobs_from_mask(
     object_mask: np.ndarray, obj_id: int, extracted_frame_idx: int
 ) -> list[BlobInfo]:
-    """ """
+    """Extract connected-component blobs from a binary object mask.
+
+    Uses 8-connectivity to find connected components, then build a
+    `BlobInfo` for each component (excluding the background label 0)
+    with its bounding box, area, centroid, and stored label mask.
+
+    Parameters
+    ----------
+    object_mask : np.ndarray
+        Binary mask (H x W) for a single object instance.
+    obj_id : int
+        The object / instance ID this mask belongs to.
+    extracted_frame_idx : int
+        The frame index from which this mask was extracted.
+
+    Returns
+    -------
+    list[BlobInfo]
+        One `BlobInfo` per connected component found in the mask.
+    """
 
     num_blobs, labeled_mask, stats, centroids = cv2.connectedComponentsWithStats(
         object_mask, connectivity=8, ltype=cv2.CV_32S
@@ -215,7 +233,7 @@ def load_errors_df(
      -------
      pandas.DataFrame or None
         A DataFrame containing only the error rows associated with the given
-        observation, or ``None`` if no matching entries are found.
+        observation, or `None` if no matching entries are found.
 
      Side Effects
      ------------
@@ -329,9 +347,10 @@ def kpss_test(timeseries, significance_level=0.05):
     https://www.statsmodels.org/dev/examples/notebooks/generated/stationarity_detrending_adf_kpss.html
     """
 
-
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message=".*p-value.*", category=InterpolationWarning)
+        warnings.filterwarnings(
+            "ignore", message=".*p-value.*", category=InterpolationWarning
+        )
         kpsstest = kpss(timeseries, regression="c", nlags="auto")
     kpss_output = pd.Series(
         kpsstest[0:3], index=["Test Statistic", "p-value", "Lags Used"]
@@ -444,7 +463,9 @@ def find_obsId_in_errors_file(
 
 
 def find_existing_file(
-    base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID, suffix: str
+    base_path: Path,
+    obs_id_object: ParsedObservationID | ManualObservationID,
+    suffix: str,
 ) -> Optional[Path]:
     """
     Find a file with the given suffix for the observation ID.
@@ -495,12 +516,16 @@ def find_existing_file(
     return None
 
 
-def find_annot(base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID):
+def find_annot(
+    base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID
+):
     """Find annotations file for the given observation ID."""
     return find_existing_file(base_path, obs_id_object, "_annotations.npy")
 
 
-def find_masks(base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID):
+def find_masks(
+    base_path: Path, obs_id_object: ParsedObservationID | ManualObservationID
+):
     """Find masks file for the given observation ID."""
     return find_existing_file(base_path, obs_id_object, "_masks.pkl")
 

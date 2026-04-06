@@ -160,6 +160,10 @@ python multi_dataset_builder.py --manual \
 | Image filenames              | 1-indexed |
 | Image IDs in COCO annotations | 1-indexed |
 
+### Data Formats
+The Automatic Mask Cleaner (Datumaro) exports masks as Compressed RLE (where "counts" is a list of ints).
+
+
 ### `configuration.py` explanation
 
 - The `Config` class:

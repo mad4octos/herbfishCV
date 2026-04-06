@@ -1,7 +1,6 @@
 # Standard Library imports
 from pathlib import Path
 import multiprocessing as mp
-from typing import Optional
 import argparse
 
 # External imports
@@ -20,7 +19,12 @@ from convert_utils import (
 )
 from blob_filter_rules import MinAreaRule, MinSizeRule
 from anomaly_rules import create_anomaly_rules
-from configuration import Config, ParsedObservationID, ManualObservationID, ClassifierConfig
+from configuration import (
+    Config,
+    ParsedObservationID,
+    ManualObservationID,
+    ClassifierConfig,
+)
 from dataset_builder import DatumaroDatasetBuilder
 from convert_utils import (
     find_annot,
@@ -51,7 +55,7 @@ Examples:
 
   python multi_dataset_builder.py \\
       --original-fps 23.997 --extracted-fps 3 --final-fps 1 --sam2-start 100
-        """
+        """,
     )
     parser.add_argument(
         "--ignore-missing-observation-ids",
@@ -62,7 +66,7 @@ Examples:
         "--no-auto",
         action="store_true",
         help="Disable automatic mask cleaning (blob filters, classifier, anomaly detection). "
-             "Only frames manually specified in the errors CSV will have their masks removed.",
+        "Only frames manually specified in the errors CSV will have their masks removed.",
     )
     parser.add_argument(
         "--extracted-fps",
@@ -154,7 +158,13 @@ Examples:
 
     # Validate that all manual args are provided when --manual is used
     if args.manual:
-        required_manual_args = ["errors_obs_id", "errors_csv_filepath", "masks_filepath", "annot_filepath", "images_dirpath"]
+        required_manual_args = [
+            "errors_obs_id",
+            "errors_csv_filepath",
+            "masks_filepath",
+            "annot_filepath",
+            "images_dirpath",
+        ]
         missing = [arg for arg in required_manual_args if getattr(args, arg) is None]
         if missing:
             parser.error(
@@ -191,7 +201,9 @@ class MultiBuilder:
         self.original_fps = original_fps
         self.sam2_start = sam2_start
 
-    def load_error_frames(self, obs_id: ParsedObservationID | ManualObservationID) -> list[int]:
+    def load_error_frames(
+        self, obs_id: ParsedObservationID | ManualObservationID
+    ) -> list[int]:
         """ """
         errors_df = load_errors_df(self.errors_csv_filepath, obs_id)
         return extract_error_frames(errors_df)
@@ -239,7 +251,7 @@ class MultiBuilder:
             ############################################################################################################
             errors_df = pd.read_csv(self.errors_csv_filepath)
             result = find_obsId_in_errors_file(obs_id_object, errors_df)
-            
+
             if isinstance(result, ObservationIdSimilarity):
                 print("Couldn't find observation id in errors file.")
                 print(result)
@@ -353,7 +365,9 @@ class MultiBuilder:
             dataset = builder.build()
 
             coco_out = run_dir / obs_id
-            dataset.export(str(coco_out), format="coco", save_media=True, tasks="instances")
+            dataset.export(
+                str(coco_out), format="coco", save_media=True, tasks="instances"
+            )
 
             print(f"Finished: '{obs_id}', results written to '{export_root_path}'.")
 
@@ -376,7 +390,6 @@ if __name__ == "__main__":
     # Build obsId_to_folder_map based on mode
     obsId_to_folder_map: dict[ParsedObservationID | ManualObservationID, Path]
     if args.manual:
-
         # Validate errors CSV file
         if not args.errors_csv_filepath.is_absolute():
             raise ValueError(
@@ -426,9 +439,7 @@ if __name__ == "__main__":
                 f"Images directory not found: {args.images_dirpath}"
             )
         if not args.images_dirpath.is_dir():
-            raise ValueError(
-                f"Images path is not a directory: {args.images_dirpath}"
-            )
+            raise ValueError(f"Images path is not a directory: {args.images_dirpath}")
 
         # Create ManualObservationID from CLI arguments
         manual_obs_id = ManualObservationID(

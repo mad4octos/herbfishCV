@@ -10,20 +10,26 @@ import cv2
 import datumaro.components.dataset
 import datumaro.components.dataset_base
 import datumaro.components.media
-from datumaro.components.annotation import RleMask, Annotation
 import datumaro.util.mask_tools as mask_tools
 import numpy as np
 import pandas as pd
+from datumaro.components.annotation import Annotation, RleMask
 from tqdm import tqdm
+from ultralytics import YOLO
 
 # Local imports
 from anomaly_rules import FishAnomalyRule
+from blob import BlobInfo
 from blob_filter_rules import BlobRule
 from common import cv2_imshow, is_empty_sparse_tensor, sparse_mask_tensor_to_dense_numpy
-from convert_utils import _get_frame_filename, get_blobs_from_mask, get_label_id
+from convert_utils import (
+    MasksType,
+    _get_frame_filename,
+    get_blobs_from_mask,
+    get_label_id,
+)
 from plot_utils import draw_mask_overlay
 from tracker import FishTrackerManager
-from blob import BlobInfo
 
 
 class DatumaroDatasetBuilder:
@@ -38,14 +44,14 @@ class DatumaroDatasetBuilder:
     def __init__(
         self,
         obs_id: str,  # this is basically the name of the run
-        masks: dict,
+        masks: MasksType,
         error_frames: list[int],
         chunked_df: pd.DataFrame,
         annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         images_path: Path,
         export_root_path: Path,
-        classifier,
+        classifier: YOLO | None,
         blob_rules: Iterable[BlobRule],
         window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
@@ -193,7 +199,6 @@ class DatumaroDatasetBuilder:
         # .abs() makes them all positive distances, and .idxmin() returns the DataFrame
         # index of the row with the smallest distance.
         closest_idx = (obj_rows["Frame"] - original_frame).abs().idxmin()
-        
         gt_location: list[float] = obj_rows.loc[closest_idx, "Location"]
 
         gt_obj_id: str = obj_rows.loc[closest_idx, "ObjID"]
@@ -224,7 +229,7 @@ class DatumaroDatasetBuilder:
                 isColor=True,
             )
             self.logger.info(f"Video writer initialized. Output file: '{filepath}'")
-        except Exception as e:
+        except Exception:
             self.logger.exception("Problem during video writer initialization")
 
     def setup_logging(self, log_to_console=True, level: int = logging.INFO):
@@ -281,7 +286,9 @@ class DatumaroDatasetBuilder:
             A Datumaro Dataset object containing DatasetItems with bounding box annotations.
         """
         if self.no_auto:
-            self.logger.info("--no-auto: skipping automatic mask cleaning (blob filters, classifier, anomaly detection).")
+            self.logger.info(
+                "--no-auto: skipping automatic mask cleaning (blob filters, classifier, anomaly detection)."
+            )
 
         if not self.error_frames:
             self.logger.warning(
@@ -323,6 +330,26 @@ class DatumaroDatasetBuilder:
         self._print_statistics()
         return dataset
 
+    def _load_frame_image(self, extracted_frame_idx: int) -> tuple:
+        """Load a frame image by index"""
+        filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
+        image_filepath = self.images_path / filename
+        if not image_filepath.exists():
+            # look for any file that ends with the expected filename
+            matches = list(self.images_path.glob(f"*{filename}"))
+            if not matches:
+                raise FileNotFoundError(
+                    f"File '{image_filepath}' doesn't exist, and no prefixed"
+                    f" variants matching '*{filename}' were found!"
+                )
+            image_filepath = matches[0]  # take the first match
+        input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
+        if input_image is None:
+            raise IOError(
+                f"File '{image_filepath}' exists but cannot be read as an image."
+            )
+        return filename, image_filepath, input_image
+
     def _process_frame(self, extracted_frame_idx: int, frame_masks: dict) -> None:
         """
         Process a single frame and its associated masks.
@@ -343,37 +370,35 @@ class DatumaroDatasetBuilder:
                 f"Skipping frame {extracted_frame_idx} (keeping every {self.frame_step}th frame)"
             )
             return
-        
-        self.logger.info(f"Processing frame {extracted_frame_idx}...")
 
+        self.logger.info(f"Processing frame {extracted_frame_idx}...")
+        filename, image_filepath, input_image = self._load_frame_image(
+            extracted_frame_idx
+        )
+
+        blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
+
+        # For error frames, keep the click location by saving an annotation with an empty mask
+        # rather than skipping the frame entirely.
         if extracted_frame_idx in self.error_frames:
+            annotations = self.create_empty_datumaro_annotations(blobs)
+            self.dataset_items.append(
+                datumaro.components.dataset_base.DatasetItem(
+                    id=filename.split(".")[0],
+                    subset="train",
+                    media=datumaro.components.media.Image.from_file(
+                        str(image_filepath)
+                    ),
+                    annotations=annotations,
+                    attributes={"frame": extracted_frame_idx},
+                )
+            )
+
             self.logger.warning(
                 f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
             )
             self.count_frames_with_errors += 1
             return
-
-        filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
-        image_filepath = self.images_path / filename
-        if not image_filepath.exists():
-            # look for any file that ends with the expected filename
-            matches = list(self.images_path.glob(f"*{filename}"))
-            if not matches:
-                error_message = (
-                    f"File '{image_filepath}' doesn't exist, and no prefixed"
-                    f" variants matching '*{filename}' were found!"
-                )
-                raise FileNotFoundError(error_message)
-            image_filepath = matches[0]  # take the first match
-        input_image = cv2.imread(str(image_filepath), cv2.IMREAD_COLOR)
-        if input_image is None:
-            error_message = (
-                f"File '{image_filepath}' exists but cannot be read as an image."
-            )
-            raise IOError(error_message)
-
-        # FIXME: too much functionality inside here
-        blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
 
         annotations = self.create_datumaro_annotations(blobs)
 
@@ -413,9 +438,9 @@ class DatumaroDatasetBuilder:
         """
         Extract blobs from frame masks, optionally applying automatic cleaning.
 
-        When ``self.no_auto`` is False (default), each mask goes through blob
+        When `self.no_auto` is False (default), each mask goes through blob
         filtering (area/size rules), YOLO classification, and anomaly detection
-        before being accepted. When ``self.no_auto`` is True, all non-empty
+        before being accepted. When `self.no_auto` is True, all non-empty
         masks are accepted as-is, keeping only the largest blob per object.
         """
         original_image = input_image.copy()
@@ -432,7 +457,9 @@ class DatumaroDatasetBuilder:
             if self.no_auto:
                 # Skip automatic cleaning: no blob filtering, classification, or anomaly detection.
                 # Just extract all blobs and keep the largest one per object.
-                raw_blobs = list(get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx))
+                raw_blobs = list(
+                    get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx)
+                )
                 if raw_blobs:
                     dominant_blob = max(raw_blobs, key=lambda b: b.area)
                     self.draw_bbox_and_id(input_image, dominant_blob, "white")
@@ -483,7 +510,10 @@ class DatumaroDatasetBuilder:
                             [f"{a['type']}({a['value']})" for a in results["anomalies"]]
                         )
                         self.draw_bbox_and_id(
-                            input_image, dominant_blob, "red", extra_text=f"({anomalies}"
+                            input_image,
+                            dominant_blob,
+                            "red",
+                            extra_text=f"({anomalies}",
                         )
 
                     else:
@@ -540,7 +570,9 @@ class DatumaroDatasetBuilder:
         for blob in get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx):
             for rule in self.blob_rules:
                 if not rule(blob):
-                    self.logger.info(f"  skipping blob {blob.blob_num}: {rule.explain(blob)}")
+                    self.logger.info(
+                        f"  skipping blob {blob.blob_num}: {rule.explain(blob)}"
+                    )
                     break
             else:
                 valid_blobs.append(blob)
@@ -580,7 +612,9 @@ class DatumaroDatasetBuilder:
                 if self.notebook_debug:
                     cv2_imshow(masked_patch)
             else:
-                self.logger.info(f"  skipping blob {blob.blob_num}: classified as {pred_class}")
+                self.logger.info(
+                    f"  skipping blob {blob.blob_num}: classified as {pred_class}"
+                )
 
         return filtered_blobs
 
@@ -617,6 +651,40 @@ class DatumaroDatasetBuilder:
                     label=label_id,
                     attributes=attributes,
                 )
+            )
+
+        return output
+
+    def create_empty_datumaro_annotations(
+        self, blobs: list[BlobInfo]
+    ) -> list[Annotation]:
+        """Like create_datumaro_annotations but with an empty (all-zero) mask.
+
+        When `blobs` is empty, produces a single empty-mask annotation using
+        the provided frame_idx, obj_id, w, h so gt_ attributes are still captured.
+        """
+
+        output = []
+        for blob in blobs:
+            label_id = get_label_id(
+                self.chunked_df,
+                self.col_class_name,
+                self.col_instance_id,
+                blob.obj_id,
+                self.label_categories,
+            )
+
+            uncompressed_rle = {"size": [2160, 3840], "counts": b""}
+            attributes: dict[str, int | list[float] | str] = {"ObjID": blob.obj_id}
+            gt = self.get_closest_gt_location(blob.frame_idx, blob.obj_id)
+            if gt is not None:
+                gt_location, gt_obj_id, gt_frame_extracted, gt_frame_original = gt
+                attributes["gt_location"] = gt_location
+                attributes["gt_obj_id"] = gt_obj_id
+                attributes["gt_frame_extracted"] = gt_frame_extracted
+                attributes["gt_frame_original"] = gt_frame_original
+            output.append(
+                RleMask(rle=uncompressed_rle, label=label_id, attributes=attributes)
             )
 
         return output
