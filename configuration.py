@@ -10,7 +10,7 @@ and I prefer to keep the configuration file self-contained to avoid potential ci
 """
 
 
-DATA_ROOT_PATH = Path(<FILL_ME>)
+DATA_ROOT_PATH = Path("/scratch/alpine/maha7624/herbfishCV/2023_FF")
 
 
 # Constants for default values
@@ -170,10 +170,10 @@ class Config:
     min_size_threshold = 20  # px
 
     # Use 4 for focal follow data, 5 for stationary data.
-    number_of_zeros = 5
+    number_of_zeros = 4
 
     # Video frame from where to start the extraction
-    start_frame: int = 0
+    start_frame: int =0
 
     # Number of frames to extract from each video
     max_frames: int | None = None
@@ -249,7 +249,7 @@ class ClassifierConfig:
     )
 
     # Path to classifier weights for detecting correctly masked fish
-    model_weights_path = Path(<FILL_ME>)
+    model_weights_path = Path("/scratch/alpine/maha7624/herbfishCV/v2.pt")
 
     # Masked fish crop classifier confidence threshold
     incorrect_cls_conf_thresh: float = 0.236  # corresponds to the class incorrect
