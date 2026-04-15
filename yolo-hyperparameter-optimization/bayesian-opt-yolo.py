@@ -202,7 +202,9 @@ def main():
     )
 
     print(f"Starting Bayesian Optimization with {args.trials} trials")
-    study.optimize(lambda trial: objective(trial, args), n_trials=args.trials)
+    study.optimize(
+        lambda trial: objective(trial, args), n_trials=args.trials, gc_after_trial=True
+    )
 
     # Print optimization results
     print("\nBest trial:")
