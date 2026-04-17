@@ -79,6 +79,12 @@ if [[ "$DATA" != /* ]] && [[ "$DATA" != ./* ]]; then
   echo "Converted data path to absolute: $DATA"
 fi
 
+# Copy data to local SSD (Approximately 300 GB/node)
+# https://curc.readthedocs.io/en/latest/compute/filesystems.html#local-scratch-on-alpine-and-blanca
+cp -r "$DATA" "$SLURM_SCRATCH"
+DATA="$SLURM_SCRATCH/$(basename "$DATA")"
+echo "Using local SSD copy: $DATA"
+
 # Create project directories
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 PROJECT_DIR="yolo_optimization_${TIMESTAMP}"
