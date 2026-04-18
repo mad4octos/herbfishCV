@@ -1,6 +1,7 @@
 # External impors
 import cv2
 import numpy as np
+import numpy.typing as npt
 import torch
 from PIL import Image
 from sklearn.metrics import f1_score
@@ -27,6 +28,48 @@ class RGBAClassificationDataset(ClassificationDataset):
         if bg_mode not in ("gray", "overlay"):
             raise ValueError(f"bg_mode must be 'gray' or 'overlay', got '{bg_mode}'")
         self.bg_mode = bg_mode
+        self.train_mode = "train" in self.prefix
+        self.probabilities = self._compute_probabilities()
+
+    def _count_samples_per_class(
+        self, class_indices: npt.NDArray[np.int64]
+    ) -> npt.NDArray[np.float32]:
+        """
+        Count the number of samples belonging to each class, returning an array of
+        length `len(self.base.classes)`. Classes with zero samples are reported as
+        1 so the result can safely be used as a divisor downstream.
+
+        Args:
+            class_indices: Class index for each sample.
+
+        Returns:
+            Sample count per class, with zeros replaced by 1.
+        """
+        counts_per_class = np.bincount(
+            class_indices, minlength=len(self.base.classes)
+        ).astype(np.float32)
+        counts_per_class = np.where(counts_per_class == 0, 1, counts_per_class)
+        return counts_per_class
+
+    def _compute_probabilities(self) -> npt.NDArray[np.float32]:
+        """
+        Compute a per-sample sampling probability inversely proportional to class frequency.
+
+        Each sample is assigned weight 1/count(class), so within every class the
+        individual weights sum to exactly 1.0 regardless of class size. Normalizing
+        over all samples therefore gives each class an equal share of the probability
+        mass, producing a uniform distribution across classes and causing rare classes
+        to be oversampled relative to their frequency in the dataset.
+
+        Returns:
+            Float array of length len(self.samples) with per-sample probabilities
+            summing to 1.
+        """
+        class_indices = np.array([s[1] for s in self.samples], dtype=np.int64)
+        counts_per_class = self._count_samples_per_class(class_indices)
+        inv_freq_per_class = 1.0 / counts_per_class
+        inv_freq_per_sample = inv_freq_per_class[class_indices]
+        return inv_freq_per_sample / inv_freq_per_sample.sum()
 
     def __getitem__(self, i: int) -> dict:
         """
@@ -39,6 +82,10 @@ class RGBAClassificationDataset(ClassificationDataset):
         Returns:
             (dict): Dictionary containing the image and its class index.
         """
+
+        if self.train_mode:
+            i = np.random.choice(len(self.samples), p=self.probabilities)
+
         # filename, index, filename.with_suffix('.npy'), image
         f, j, fn, im = self.samples[i]
         if self.cache_ram:
