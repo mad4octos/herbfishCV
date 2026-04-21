@@ -53,6 +53,9 @@ def main():
         default=1.0,
         help="Fraction of dataset to use (0.0–1.0). Use a small value (e.g. 0.1) for quick smoke-test runs.",
     )
+    parser.add_argument(
+        "--name", type=str, default="final_train", help="Run name (subfolder under project)"
+    )
     args = parser.parse_args()
 
     # Load hyperparameters from YAML
@@ -74,7 +77,7 @@ def main():
 
     names = sorted(p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir())
     cbs = LossPlotCallbacks(
-        figpath=f"{args.project}/loss_plot.png",
+        figpath=f"{args.project}/{args.name}/loss_plot.png",
         mode="classification",
         names=names,
     )
@@ -89,6 +92,7 @@ def main():
         epochs=args.epochs,
         device=args.device,
         project=args.project,
+        name=args.name,
         trainer=RGBClassificationTrainer,
         deterministic=True,
         fraction=args.fraction,
