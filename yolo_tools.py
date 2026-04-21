@@ -30,7 +30,8 @@ def find_best_threshold(
     positive_class_confs: torch.Tensor,  # (N,)
     targets: torch.Tensor,  # (N,) binary ground truth
     n_thresholds: int = 200,
-    plot: bool = True,
+    plot_path: Path | None = None,
+    show: bool = False,
 ) -> tuple[float, float]:
     """
     Sweep confidence thresholds and find the one maximising F1.
@@ -60,7 +61,7 @@ def find_best_threshold(
     best_threshold = thresholds[best_idx].item()
     best_f1 = f1_scores[best_idx].item()
 
-    if plot:
+    if plot_path is not None or show:
         t_np = thresholds.numpy()
         f1_np = f1_scores.numpy()
         pr_np = precision.numpy()
@@ -103,7 +104,13 @@ def find_best_threshold(
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.show()
+        if plot_path is not None:
+            fig.savefig(plot_path, dpi=300, bbox_inches="tight")
+        
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
 
     return best_threshold, best_f1
 
@@ -172,6 +179,8 @@ def evaluate_and_report(
     Returns:
         best_threshold, best_f1
     """
+    report_path = Path(report_path)
+
     val_dataloader = _make_rgba_dataloader(data_root / "val", batch_size, bg_mode, imgsz, scale)
     test_dataloader = _make_rgba_dataloader(data_root / "test", batch_size, bg_mode, imgsz, scale)
     val_targets, val_confs = get_targets_and_confs(
@@ -180,7 +189,7 @@ def evaluate_and_report(
     test_targets, test_confs = get_targets_and_confs(
         model, test_dataloader, positive_class_name=incorrect_class
     )
-    best_t, best_f1 = find_best_threshold(val_confs, val_targets)
+    best_t, best_f1 = find_best_threshold(val_confs, val_targets, plot_path=report_path.with_suffix(".threshold_plot.png"))
     print(f"Best threshold: {best_t:.3f}  →  F1 max: {best_f1:.3f}")
     preds = (test_confs >= best_t).to(torch.uint8)
     report = classification_report(
@@ -195,7 +204,7 @@ def evaluate_and_report(
         f"CLASSIFICATION REPORT — TEST SPLIT\n\n"
         f"{report}"
     )
-    report_path = Path(report_path)
+    
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(summary)
     print(f"\nReport saved to {report_path}")
