@@ -95,7 +95,7 @@ def objective(trial: Trial, args):
             p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir()
         )
         cbs = LossPlotCallbacks(
-            figpath=f"{args.project}/trial_{trial.number}/loss_plot.png",
+            figpath=f"{args.project}/{train_args['name']}/loss_plot.png",
             mode="classification",
             names=class_names,
         )
