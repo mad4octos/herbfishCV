@@ -119,7 +119,7 @@ python3 ../bayesian-opt-yolo.py \
   --workers $WORKERS \
   --incorrect-class "$INCORRECT_CLASS" \
   --fraction $FRACTION \
-  --project ./optimization_results
+  --project ./trials
 
 # Check if optimization completed successfully
 if [ ! -f "./best_hyperparameters.yaml" ]; then
