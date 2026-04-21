@@ -249,7 +249,7 @@ class RGBClassificationTrainer(ClassificationTrainer):
             batch (Any, optional): Batch information (unused in this implementation).
 
         Returns:
-            (ClassificationDataset): Dataset for the specified mode.
+            (RGBAClassificationDataset): Dataset for the specified mode.
         """
         return RGBAClassificationDataset(
             root=img_path, args=self.args, augment=mode == "train", prefix=mode,
