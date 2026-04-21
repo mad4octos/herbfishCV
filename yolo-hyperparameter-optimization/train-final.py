@@ -104,7 +104,7 @@ def main():
         imgsz,
         args.incorrect_class,
         header,
-        Path(args.project) / "final_training_results.txt",
+        "final_training_results.txt",
         bg_mode=bg_mode,
         scale=scale,
     )
