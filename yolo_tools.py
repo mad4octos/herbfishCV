@@ -116,15 +116,14 @@ def find_best_threshold(
 
 
 def get_targets_and_confs(
-    model: YOLO, dataloader, positive_class_name: str
+    model: YOLO, dataloader: DataLoader, positive_class_name: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Run inference over the dataloader and collect top-1 predictions,
-    positive-class confidences, and ground truth labels.
+    Run inference over the dataloader to collect ground truth labels and positive-class confidences.
 
     Returns:
-        pos_confs:   (N,) confidence of the positive class
         all_targets: (N,) ground truth labels
+        pos_confs:   (N,) confidence of the positive class
     """
     class_idx = next(
         i for i, name in model.names.items() if name == positive_class_name
@@ -173,11 +172,15 @@ def evaluate_and_report(
     scale: float = 0.0,
 ) -> tuple[float, float]:
     """
-    Find the best confidence threshold on the val split, evaluate on the test
-    split, print the classification report, and write a summary to disk.
+    Find the best confidence threshold on the val split and evaluate on the test split.
+
+    The threshold maximizes F1 for `incorrect_class` on val, then applies that fixed
+    threshold to produce test predictions. Writes a text summary to `report_path` and a
+    threshold-vs-F1 plot alongside it.
 
     Returns:
-        best_threshold, best_f1
+        best_threshold: Confidence cutoff selected on the val split.
+        best_f1: F1 of `incorrect_class` at that threshold on the val split.
     """
     report_path = Path(report_path)
 
