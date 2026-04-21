@@ -13,6 +13,7 @@ import yaml
 from ultralytics import YOLO
 
 # Local imports
+from yolo_callbacks import LossPlotCallbacks
 from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
 
@@ -70,6 +71,16 @@ def main():
     # Initialize the model
     print(f"\nInitializing model: {model_name}")
     model = YOLO(model_name)
+
+    names = sorted(p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir())
+    cbs = LossPlotCallbacks(
+        figpath=f"{args.project}/loss_plot.png",
+        mode="classification",
+        names=names,
+    )
+    model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
+    model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
+    model.add_callback("on_val_end", cbs.on_val_end)
 
     # Train with best hyperparameters
     print("\nStarting training with best hyperparameters...")
