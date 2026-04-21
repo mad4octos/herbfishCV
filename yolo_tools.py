@@ -189,24 +189,30 @@ def evaluate_and_report(
     test_targets, test_confs = get_targets_and_confs(
         model, test_dataloader, positive_class_name=incorrect_class
     )
-    best_t, best_f1 = find_best_threshold(val_confs, val_targets, plot_path=report_path.with_suffix(".threshold_plot.png"))
-    print(f"Best threshold: {best_t:.3f}  →  F1 max: {best_f1:.3f}")
-    preds = (test_confs >= best_t).to(torch.uint8)
-    report = classification_report(
-        test_targets, preds, target_names=list(model.names.values()), digits=3
+    best_val_thresh, best_val_f1 = find_best_threshold(
+        val_confs, val_targets, plot_path=report_path.with_suffix(".threshold_plot.png")
     )
-    print(report)
+    print(
+        f"Best validation threshold: {best_val_thresh:.3f}\n"
+        f"Best validation F1 max: {best_val_f1:.3f}"
+    )
+    
+    test_preds = (test_confs >= best_val_thresh).to(torch.uint8)
+    test_report = classification_report(
+        test_targets, test_preds, target_names=list(model.names.values()), digits=3
+    )
+    print(test_report)
 
     summary = (
         f"{header}"
-        f"Threshold (val, '{incorrect_class}' class): {best_t:.4f}\n"
-        f"F1 at threshold (val, '{incorrect_class}' class): {best_f1:.4f}\n\n"
+        f"Threshold (val, '{incorrect_class}' class): {best_val_thresh:.4f}\n"
+        f"F1 at threshold (val, '{incorrect_class}' class): {best_val_f1:.4f}\n\n"
         f"CLASSIFICATION REPORT — TEST SPLIT\n\n"
-        f"{report}"
+        f"{test_report}"
     )
     
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(summary)
     print(f"\nReport saved to {report_path}")
 
-    return best_t, best_f1
+    return best_val_thresh, best_val_f1
