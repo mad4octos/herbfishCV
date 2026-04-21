@@ -161,7 +161,7 @@ def evaluate_and_report(
     imgsz: int,
     incorrect_class: str,
     header: str,
-    report_path: Path,
+    report_path: Path|str,
     bg_mode: str = "gray",
     scale: float = 0.0,
 ) -> tuple[float, float]:
