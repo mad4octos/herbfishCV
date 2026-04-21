@@ -1,3 +1,8 @@
+# Standard Library imports
+import copy
+import random
+from collections import Counter
+
 # External impors
 import cv2
 import numpy as np
@@ -8,6 +13,7 @@ from sklearn.metrics import f1_score
 from ultralytics.data import ClassificationDataset
 from ultralytics.models.yolo.classify import ClassificationValidator
 from ultralytics.models.yolo.classify.train import ClassificationTrainer
+from ultralytics.utils import LOGGER
 from ultralytics.utils.metrics import ClassifyMetrics
 
 # Local imports
@@ -17,19 +23,90 @@ YOLO_GRAY = (114, 114, 114)  # default YOLO letterbox fill value (BGR)
 
 
 class RGBAClassificationDataset(ClassificationDataset):
-    def __init__(self, *args, bg_mode: str = "gray", **kwargs):
+    def __init__(self, *pos_args, bg_mode: str = "gray", **kwargs):
         """
         Args:
             bg_mode (str): How to handle the background (alpha == 0) region.
                 "gray"    : replace background with YOLO gray (114, 114, 114). Default.
                 "overlay" : draw a semi-transparent red overlay on the foreground.
         """
-        super().__init__(*args, **kwargs)
         if bg_mode not in ("gray", "overlay"):
             raise ValueError(f"bg_mode must be 'gray' or 'overlay', got '{bg_mode}'")
+
+        namespace_args = kwargs.get('args')
+        augment = kwargs.get('augment', False)
+        fraction = getattr(namespace_args, 'fraction', 1.0)
+
+        # Prevent the parent from slicing all samples uniformly; apply fraction
+        # selectively to the majority class only (to reduce class imbalance and speed up training).
+        if namespace_args is not None and fraction < 1.0:
+            modified_namespace = copy.copy(namespace_args)
+            modified_namespace.fraction = 1.0
+            kwargs = {**kwargs, 'args': modified_namespace}
+
+        super().__init__(*pos_args, **kwargs)
+
+        # augment=True only during training (build_dataset passes augment=mode=="train")
+        if augment and fraction < 1.0:
+            self._apply_fraction_to_majority(fraction)
+
         self.bg_mode = bg_mode
         self.train_mode = "train" in self.prefix
         self.probabilities = self._compute_probabilities()
+
+    def _apply_fraction_to_majority(self, fraction: float) -> None:
+        """Reduce the majority class to `fraction` of its original size.
+
+        Leaves all minority classes untouched, so the net effect is to shrink
+        the class imbalance rather than uniformly sub-sampling every class.
+
+        Args:
+            fraction: Proportion of majority-class samples to keep (0 < fraction < 1).
+        """
+        class_indices = np.array([s[1] for s in self.samples])
+        majority_class = int(np.bincount(class_indices).argmax())
+
+        majority_samples = [s for s in self.samples if s[1] == majority_class]
+        minority_samples = [s for s in self.samples if s[1] != majority_class]
+
+        n_before = len(majority_samples)
+        random.shuffle(majority_samples)
+        majority_samples = majority_samples[: round(n_before * fraction)]
+        n_after = len(majority_samples)
+        self.samples = majority_samples + minority_samples
+
+        self._log_fraction_result(
+            fraction, majority_class, n_before, n_after, minority_samples
+        )
+
+    def _log_fraction_result(
+        self,
+        fraction: float,
+        majority_class: int,
+        n_before: int,
+        n_after: int,
+        minority_samples: list,
+    ) -> None:
+        """Log a per-class summary of the fraction sub-sampling applied to the majority class.
+
+        Args:
+            fraction: The fraction that was applied.
+            majority_class: Class index of the majority class.
+            n_before: Number of majority-class samples before sub-sampling.
+            n_after: Number of majority-class samples after sub-sampling.
+            minority_samples: Remaining (untouched) samples from all non-majority classes.
+        """
+        class_names = self.base.classes
+        minority_counts = Counter(s[1] for s in minority_samples)
+        lines = [
+            f"{self.prefix}fraction={fraction} applied to majority class only:",
+            f"  {class_names[majority_class]}: {n_before} -> {n_after} samples",
+            *(
+                f"  {class_names[i]}: {n} -> {n} samples (unchanged)"
+                for i, n in sorted(minority_counts.items())
+            ),
+        ]
+        LOGGER.info("\n".join(lines))
 
     def _count_samples_per_class(
         self, class_indices: npt.NDArray[np.int64]
