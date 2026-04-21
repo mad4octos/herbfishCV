@@ -91,10 +91,13 @@ def objective(trial: Trial, args):
         model_name = trial.suggest_categorical("model", MODEL_CANDIDATES)
         model = YOLO(model_name)
 
+        class_names = sorted(
+            p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir()
+        )
         cbs = LossPlotCallbacks(
             figpath=f"{args.project}/trial_{trial.number}/loss_plot.png",
             mode="classification",
-            names=["correct", "incorrect"],
+            names=class_names,
         )
         model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
         model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
