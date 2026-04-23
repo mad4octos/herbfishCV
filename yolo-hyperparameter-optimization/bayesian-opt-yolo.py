@@ -78,9 +78,9 @@ def objective(trial: Trial, args):
 
     # Add specific parameters you might want to tune
     train_args["batch"] = trial.suggest_categorical(
-        "batch", [4, 8, 16, 32, 64, 128, 256]
+        "batch", [128, 256, 384, 512, 1024]
     )
-    train_args["imgsz"] = trial.suggest_categorical("imgsz", [128, 192, 224, 256])
+    train_args["imgsz"] = trial.suggest_categorical("imgsz", [192, 224, 256])
 
     # Include bg_mode as a categorical hyperparameter in the search
     bg_mode = trial.suggest_categorical("bg_mode", ["gray", "overlay"])
