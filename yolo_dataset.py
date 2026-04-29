@@ -35,16 +35,16 @@ class RGBAClassificationDataset(ClassificationDataset):
         if bg_mode not in ("gray", "overlay"):
             raise ValueError(f"bg_mode must be 'gray' or 'overlay', got '{bg_mode}'")
 
-        namespace_args = kwargs.get('args')
-        augment = kwargs.get('augment', False)
-        fraction = getattr(namespace_args, 'fraction', 1.0)
+        namespace_args = kwargs.get("args")
+        augment = kwargs.get("augment", False)
+        fraction = getattr(namespace_args, "fraction", 1.0)
 
         # Prevent the parent from slicing all samples uniformly; apply fraction
         # selectively to the majority class only (to reduce class imbalance and speed up training).
         if namespace_args is not None and fraction < 1.0:
             modified_namespace = copy.copy(namespace_args)
             modified_namespace.fraction = 1.0
-            kwargs = {**kwargs, 'args': modified_namespace}
+            kwargs = {**kwargs, "args": modified_namespace}
 
         super().__init__(*pos_args, **kwargs)
 
@@ -254,7 +254,10 @@ class RGBClassificationTrainer(ClassificationTrainer):
             (RGBAClassificationDataset): Dataset for the specified mode.
         """
         return RGBAClassificationDataset(
-            root=img_path, args=self.args, augment=mode == "train", prefix=mode,
+            root=img_path,
+            args=self.args,
+            augment=mode == "train",
+            prefix=mode,
             bg_mode=self.bg_mode,
         )
 
