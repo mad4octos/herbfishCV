@@ -196,14 +196,15 @@ def evaluate_and_report(
         val_confs, val_targets, plot_path=report_path.with_suffix(".threshold_plot.png")
     )
     print(
-        f"Best validation threshold: {best_val_thresh:.3f}\n"
-        f"Best validation F1 max: {best_val_f1:.3f}"
+        f"Best threshold with respect to '{incorrect_class}' class (val set): {best_val_thresh:.3f}\n"
+        f"Best F1 max with respect to '{incorrect_class}' class (val set): {best_val_f1:.3f}"
     )
     
     test_preds = (test_confs >= best_val_thresh).to(torch.uint8)
     test_report = classification_report(
         test_targets, test_preds, target_names=list(model.names.values()), digits=3
     )
+    print("Classification report (test set):")
     print(test_report)
 
     summary = (
