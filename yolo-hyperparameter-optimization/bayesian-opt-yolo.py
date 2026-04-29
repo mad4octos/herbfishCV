@@ -41,6 +41,12 @@ def objective(trial: Trial, args):
     # Sample hyperparameters
     train_args = {}
 
+    # Include bg_mode as a categorical hyperparameter in the search
+    bg_mode = trial.suggest_categorical("bg_mode", ["gray", "overlay"])
+
+    # Create a fresh subclass per trial so bg_mode is isolated and never shared
+    trainer = type("TrialTrainer", (RGBClassificationTrainer,), {"bg_mode": bg_mode})
+
     # Add the base arguments
     train_args["data"] = args.data
     train_args["epochs"] = args.epochs
@@ -49,7 +55,7 @@ def objective(trial: Trial, args):
     train_args["name"] = f"trial_{trial.number}"
     train_args["val"] = True  # Always validate during training
     train_args["deterministic"] = True
-    train_args["trainer"] = RGBClassificationTrainer
+    train_args["trainer"] = trainer
     train_args["workers"] = args.workers
     train_args["fraction"] = args.fraction
 
@@ -81,10 +87,6 @@ def objective(trial: Trial, args):
         "batch", [128, 256, 384, 512, 1024]
     )
     train_args["imgsz"] = trial.suggest_categorical("imgsz", [192, 224, 256])
-
-    # Include bg_mode as a categorical hyperparameter in the search
-    bg_mode = trial.suggest_categorical("bg_mode", ["gray", "overlay"])
-    RGBClassificationTrainer.bg_mode = bg_mode
 
     try:
         # Sample model architecture as a categorical hyperparameter
