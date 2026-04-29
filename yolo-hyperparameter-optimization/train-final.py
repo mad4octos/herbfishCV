@@ -112,6 +112,7 @@ def main():
     header = (
         f"FINAL TRAINING RESULTS\n"
         f"Model: {model_name}\n"
+        f"bg_mode: {bg_mode}\n"
         f"Epochs: {args.epochs}\n"
         f"Hyperparameters file: {args.hyp}\n"
         f"Hyperparameters:\n{hyp_lines}\n\n"
