@@ -61,6 +61,8 @@ This framework provides an end-to-end solution for finding optimal hyperparamete
 1. **Bayesian Optimization**: Systematically explores hyperparameter combinations, maximizing macro F1 on the validation split across all trials.
 2. **Final Training**: Trains a model from scratch using the best discovered hyperparameters for an extended number of epochs.
 
+> **Note on error cost asymmetry**: False positives (the model flags a correct mask as "incorrect" and it gets deleted) are more costly than false negatives (the model misses a genuinely incorrect mask and leaves it in place) because recreating a deleted mask from scratch is harder than cleaning up a leftover incorrect one. Consider weighting precision on the `incorrect` class more heavily than recall, as the model should be conservative about flagging a mask as incorrect.
+
 ## Hyperparameters Optimized
 
 | Parameter | Type | Range / Options |
