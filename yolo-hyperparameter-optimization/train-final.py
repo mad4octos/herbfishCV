@@ -56,6 +56,9 @@ def main():
     parser.add_argument(
         "--name", type=str, default="final_train", help="Run name (subfolder under project)"
     )
+    parser.add_argument(
+        "--workers", type=int, default=4, help="Number of dataloader workers"
+    )
     args = parser.parse_args()
 
     # Load hyperparameters from YAML
@@ -93,6 +96,7 @@ def main():
         device=args.device,
         project=args.project,
         name=args.name,
+        workers=args.workers,
         trainer=RGBClassificationTrainer,
         deterministic=True,
         fraction=args.fraction,

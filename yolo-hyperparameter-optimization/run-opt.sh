@@ -134,6 +134,7 @@ python3 ../train-final.py \
   --data "$DATA" \
   --epochs $FINAL_EPOCHS \
   --device "$DEVICE" \
+  --workers $WORKERS \
   --incorrect-class "$INCORRECT_CLASS" \
   --fraction $FRACTION \
   --hyp ./best_hyperparameters.yaml \
