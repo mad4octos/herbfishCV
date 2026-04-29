@@ -15,6 +15,8 @@ from ultralytics.models.yolo.classify import ClassificationValidator
 from ultralytics.models.yolo.classify.train import ClassificationTrainer
 from ultralytics.utils import LOGGER
 from ultralytics.utils.metrics import ClassifyMetrics
+from ultralytics.utils.torch_utils import is_parallel, torch_distributed_zero_first
+from ultralytics.data import build_dataloader
 
 # Local imports
 from plot_utils import draw_mask_overlay
@@ -255,6 +257,37 @@ class RGBClassificationTrainer(ClassificationTrainer):
             root=img_path, args=self.args, augment=mode == "train", prefix=mode,
             bg_mode=self.bg_mode,
         )
+
+    def get_dataloader(
+        self,
+        dataset_path: str,
+        batch_size: int = 16,
+        rank: int = 0,
+        mode: str = "train",
+    ):
+        """The only difference betwen this method and the original ultralytics 8.3.227
+        ClassificationTrainer.get_dataloader is that build_dataloader is called with pin_memory=False.
+        This fixes OOM erros when running multiple trials with Optuna.
+        """
+        # init dataset *.cache only once if DDP
+        with torch_distributed_zero_first(rank):
+            dataset = self.build_dataset(dataset_path, mode)
+
+        loader = build_dataloader(
+            dataset,
+            batch_size,
+            self.args.workers,
+            rank=rank,
+            drop_last=self.args.compile,
+            pin_memory=False,
+        )
+        # Attach inference transforms
+        if mode != "train":
+            if is_parallel(self.model):
+                self.model.module.transforms = loader.dataset.torch_transforms
+            else:
+                self.model.transforms = loader.dataset.torch_transforms
+        return loader
 
     def get_validator(self):
         self.loss_names = ["loss"]
