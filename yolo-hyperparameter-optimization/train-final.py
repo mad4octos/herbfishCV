@@ -98,8 +98,10 @@ def main():
         name=args.name,
         workers=args.workers,
         trainer=RGBClassificationTrainer,
+        val=True,
         deterministic=True,
         fraction=args.fraction,
+        optimizer="auto",
         **hyp,
     )
 
