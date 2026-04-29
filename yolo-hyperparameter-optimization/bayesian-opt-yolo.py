@@ -96,11 +96,8 @@ def objective(trial: Trial, args):
         class_names = sorted(
             p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir()
         )
-        cbs = LossPlotCallbacks(
-            figpath=f"{args.project}/{train_args['name']}/loss_plot.png",
-            mode="classification",
-            names=class_names,
-        )
+        cbs = LossPlotCallbacks(mode="classification", names=class_names)
+        model.add_callback("on_train_start", cbs.on_train_start)
         model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
         model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
         model.add_callback("on_val_end", cbs.on_val_end)
