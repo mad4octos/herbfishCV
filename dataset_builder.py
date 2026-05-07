@@ -73,6 +73,7 @@ class DatumaroDatasetBuilder:
         video_fps: int = 2,
         video_height: int = 2160,
         video_width: int = 3840,
+        subset: str = "train",
     ):
         """ """
         self.start_time = datetime.now()
@@ -109,6 +110,7 @@ class DatumaroDatasetBuilder:
         self.count_frames_with_errors = 0
         self.notebook_debug = notebook_debug
         self.no_auto = no_auto
+        self.subset = subset
         self.correct_class = correct_class
         self.incorrect_class = incorrect_class
         self.max_frames = max_frames
@@ -385,7 +387,7 @@ class DatumaroDatasetBuilder:
             self.dataset_items.append(
                 datumaro.components.dataset_base.DatasetItem(
                     id=filename.split(".")[0],
-                    subset="train",
+                    subset=self.subset,
                     media=datumaro.components.media.Image.from_file(
                         str(image_filepath)
                     ),
