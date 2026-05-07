@@ -122,7 +122,10 @@ class DatumaroDatasetBuilder:
             self.anomaly_rules, logger=self.logger, window_size=window_size
         )
         self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
-        self.class_to_index = {cls: idx for idx, cls in self.classifier.names.items()}
+        if self.classifier is not None:
+            self.class_to_index = {
+                cls: idx for idx, cls in self.classifier.names.items()
+            }
 
     def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
         """
@@ -596,6 +599,7 @@ class DatumaroDatasetBuilder:
         self, blobs: list[BlobInfo], patches: list[np.ndarray]
     ) -> list[BlobInfo]:
         """Get classified bounding boxes from blobs."""
+        assert self.classifier is not None
 
         filtered_blobs = []
         for blob, masked_patch in zip(blobs, patches):
