@@ -49,7 +49,6 @@ class DatumaroDatasetBuilder:
         chunked_df: pd.DataFrame,
         annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
-        images_path: Path,
         export_root_path: Path,
         classifier: YOLO | None,
         blob_rules: Iterable[BlobRule],
@@ -57,6 +56,7 @@ class DatumaroDatasetBuilder:
         anomaly_rules: Iterable[FishAnomalyRule],
         correct_class: str,
         incorrect_class: str,
+        images_path: Path | None = None,
         incorrect_cls_conf_thresh: float = 0.5,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
@@ -97,7 +97,7 @@ class DatumaroDatasetBuilder:
         self.chunked_df = chunked_df
         self.annotations_df = annotations_df
         self.label_categories = label_categories
-        self.images_path = Path(images_path)
+        self.images_path = Path(images_path) if images_path is not None else None
         self.export_root_path = export_root_path
         self.col_class_name = col_class_name
         self.col_instance_id = col_instance_id
@@ -121,6 +121,8 @@ class DatumaroDatasetBuilder:
         self.tracker_manager = FishTrackerManager(
             self.anomaly_rules, logger=self.logger, window_size=window_size
         )
+        self.video_height = video_height
+        self.video_width = video_width
         self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
         if self.classifier is not None:
             self.class_to_index = {
@@ -338,6 +340,9 @@ class DatumaroDatasetBuilder:
     def _load_frame_image(self, extracted_frame_idx: int) -> tuple:
         """Load a frame image by index"""
         filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
+        if self.images_path is None:
+            h, w = self.video_height, self.video_width
+            return filename, None, np.zeros((h, w, 3), dtype=np.uint8)
         image_filepath = self.images_path / filename
         if not image_filepath.exists():
             # look for any file that ends with the expected filename
@@ -385,15 +390,19 @@ class DatumaroDatasetBuilder:
 
         # For error frames, keep the click location by saving an annotation with an empty mask
         # rather than skipping the frame entirely.
+        media = (
+            datumaro.components.media.Image.from_numpy(input_image)
+            if image_filepath is None
+            else datumaro.components.media.Image.from_file(str(image_filepath))
+        )
+
         if extracted_frame_idx in self.error_frames:
             annotations = self.create_empty_datumaro_annotations(blobs)
             self.dataset_items.append(
                 datumaro.components.dataset_base.DatasetItem(
                     id=filename.split(".")[0],
                     subset=self.subset,
-                    media=datumaro.components.media.Image.from_file(
-                        str(image_filepath)
-                    ),
+                    media=media,
                     annotations=annotations,
                     attributes={"frame": extracted_frame_idx},
                 )
@@ -413,7 +422,7 @@ class DatumaroDatasetBuilder:
             datumaro.components.dataset_base.DatasetItem(
                 id=filename.split(".")[0],
                 subset="train",
-                media=datumaro.components.media.Image.from_file(str(image_filepath)),
+                media=media,
                 annotations=annotations,
                 attributes={"frame": extracted_frame_idx},
             )
