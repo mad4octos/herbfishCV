@@ -421,7 +421,7 @@ class DatumaroDatasetBuilder:
         self.dataset_items.append(
             datumaro.components.dataset_base.DatasetItem(
                 id=filename.split(".")[0],
-                subset="train",
+                subset=self.subset,
                 media=media,
                 annotations=annotations,
                 attributes={"frame": extracted_frame_idx},
