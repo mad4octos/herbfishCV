@@ -50,7 +50,7 @@ for i in "${!errors_obs_ids[@]}"; do
     echo "Cleaning trial: $errors_obs_id"
     echo "======================================"
     
-    if [[ "rename_images" == True ]]; then
+    if [[ "$rename_images" == "True" ]]; then
         python renumber_images.py "${images_dirpath}"
     fi
     
