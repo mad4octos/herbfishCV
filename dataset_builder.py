@@ -495,11 +495,6 @@ class DatumaroDatasetBuilder:
 
                 # Filter blobs with a classifier, only correctly masked fish will be preserved
                 classified_blobs = self._classify_blobs(filtered_blobs, blob_patches)
-
-                # FIXME: debug only!
-                # for blob, masked_patch in zip(filtered_blobs, blob_patches):
-                #    blob.patch = masked_patch
-
                 if classified_blobs:
                     # Preserve the largest blob
                     dominant_blob = max(classified_blobs, key=lambda b: b.area)
