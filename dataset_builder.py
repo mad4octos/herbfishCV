@@ -372,6 +372,11 @@ class DatumaroDatasetBuilder:
         """
         original_frame = self.extracted_to_original_frame(extracted_frame_idx)
         if original_frame is None:
+            self.logger.warning(
+                f"Couldn't map extracted frame index {extracted_frame_idx} to original frame. "
+                f"No ground truth location will be available."
+                f"Probable cause: missing parameters original_fps, sam2_start, or extracted_fps."
+            )
             return None
 
         obj_rows = self.annotations_df[
