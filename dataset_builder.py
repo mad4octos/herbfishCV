@@ -77,7 +77,147 @@ class DatumaroDatasetBuilder:
         verbose: bool = False,
         notebook_debug: bool = False,
     ):
-        """ """
+        """
+        Parameters
+        ----------
+        obs_id : str
+            Observation identifier.
+        masks : MasksType
+            Nested dictionary mapping frame indices to per-object sparse tensor
+            SAM2 masks. Structure: `{frame_idx: {obj_id: sparse_tensor, ...}, ...}`.
+        error_frames : list[int]
+            Frame indices (0-indexed) that had errors in the CSV file.
+            These frames are still exported as dataset items but with empty
+            mask annotations instead of real ones. Ground-truth click
+            location attributes are preserved only when blobs are detected
+            for the frame.
+        chunked_df : pd.DataFrame
+            DataFrame containing per-object metadata for the current observation
+            chunk. Must include columns for class name and instance ID (see
+            *col_class_name* and *col_instance_id*). Used to look up the label
+            for each detected object.
+        annotations_df : pd.DataFrame
+            DataFrame with ground-truth point annotations (click locations).
+            Expected columns: `ObjID`, `ClickType`, `Frame`, and
+            `Location`. Only rows where `ClickType == 1` are considered
+            when looking up the nearest ground-truth position for each
+            exported mask.
+        label_categories : datumaro.components.dataset_base.CategoriesInfo
+            Datumaro label category mapping that defines the set of classes
+            for the output dataset (e.g. fish species).
+        export_root_path : Path
+            Root directory where all outputs are written: the debug video and
+            log files. The Datumaro dataset is returned by `build` and
+            must be saved by the caller.
+        images_path : Path
+            Directory containing the extracted video frames as image files
+            (e.g. JPEGs). Frame filenames are expected to be zero-padded
+            integers (see *filename_num_zeros*).
+        col_class_name : str, optional
+            Column name in *chunked_df* that holds the object class/type
+            string. Default is `ObjType`.
+        col_instance_id : str, optional
+            Column name in *chunked_df* that holds the object instance ID.
+            Default is `ObjID`.
+        filename_num_zeros : int, optional
+            Number of zero-padded digits in the extracted frame filenames.
+            For example, `5` expects filenames like `00042.jpg`.
+            Default is `5`.
+        start_frame : int, optional
+            First frame index to process (inclusive). All frames before this
+            index are skipped. Default is `0`.
+        max_frames : int or None, optional
+            Maximum number of frames to process starting from *start_frame*.
+            `None` means process all available frames. Default is `None`.
+        extracted_fps : int or None, optional
+            Frame rate at which frames were extracted from the original video.
+            Used together with *final_fps* to compute the subsampling step,
+            and with *original_fps* / *sam2_start* for frame-number mapping.
+            Default is `None` (no subsampling or mapping).
+        final_fps : int or None, optional
+            Desired output frame rate. When both *extracted_fps* and
+            *final_fps* are provided, only every `extracted_fps // final_fps`
+            frame is processed. Default is `None`.
+        original_fps : float or None, optional
+            Frame rate of the original source video. Used to map extracted
+            frame indices back to the original video frame space (needed for
+            ground-truth annotation lookup). Default is `None`.
+        sam2_start : int or None, optional
+            Starting frame offset in the original video where SAM2 mask
+            propagation began. Used together with *original_fps* and
+            *extracted_fps* for the frame-number mapping formula:
+            `original_frame = extracted_frame * (original_fps / extracted_fps) + sam2_start`.
+            Default is `None`.
+        no_auto : bool, optional
+            If True, skip all automatic mask cleaning (blob filtering,
+            YOLO classification, and anomaly detection). Only the largest
+            blob per object is kept. Default is `False`.
+        classifier : YOLO or None, optional
+            A YOLO classification model instance (e.g. loaded via
+            `ultralytics.YOLO`). Called on cropped/masked blob patches to
+            verify that a detected blob belongs to the *correct_class*.
+            When provided and *no_auto* is False, *correct_class*,
+            *incorrect_class*, *incorrect_cls_conf_thresh*, and *bg_mode*
+            must also be set. Ignored when *no_auto* is True.
+            Default is `None`.
+        bg_mode : {"gray", "overlay"} or None, optional
+            Background style used when generating blob image patches for the
+            classifier. `gray` fills the background with a neutral grey;
+            `overlay` keeps the original image behind the masked blob.
+            Required when *classifier* is not `None`. Default is `None`.
+        correct_class : str or None, optional
+            Class name the classifier must predict for a blob to be accepted
+            (e.g. `fish`). Blobs predicted as *incorrect_class* are
+            discarded. Required when *classifier* is not `None`.
+            Default is `None`.
+        incorrect_class : str or None, optional
+            Class name used to label blobs that the classifier rejects.
+            Required when *classifier* is not `None`. Default is `None`.
+        incorrect_cls_conf_thresh : float or None, optional
+            Confidence threshold for the *incorrect_class* prediction. When
+            the classifier's confidence for the incorrect class meets or
+            exceeds this value, the blob is discarded. Required when
+            *classifier* is not `None`. Default is `None`.
+        blob_rules : Iterable[BlobRule] or None, optional
+            Sequence of blob filtering rules applied **before** classification.
+            Each rule is a callable that receives a `BlobInfo` and returns
+            `True` to keep or `False` to discard the blob based on
+            geometric properties (area, size, shape, etc.).
+            Required when *no_auto* is False. Default is `None`.
+        anomaly_rules : Iterable[FishAnomalyRule] or None, optional
+            Sequence of anomaly detection rules applied **after** tracking.
+            These evaluate temporal behavior (e.g. sudden changes in area or
+            shape over consecutive frames) to flag suspicious blobs.
+            Required when *no_auto* is False. Default is `None`.
+        window_size : int or None, optional
+            Sliding window size passed to `FishTrackerManager`. Controls how
+            many recent observations the anomaly detector considers when
+            evaluating temporal metrics. Required when *no_auto* is False.
+            Default is `None`.
+        create_video : bool, optional
+            If True, initialize a video writer and write a debug MP4 to
+            *export_root_path* showing bounding boxes and mask overlays for
+            every non-error processed frame. When True, *video_fps*, *video_height*,
+            and *video_width* must be specified. Default is `False`.
+        video_fps : int or None, optional
+            Frame rate for the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        video_height : int or None, optional
+            Height in pixels of the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        video_width : int or None, optional
+            Width in pixels of the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        subset : str, optional
+            Datumaro dataset split name assigned to every exported item
+            (e.g. `train`, `val`). Default is `train`.
+        verbose : bool, optional
+            If True, enable console logging and print per-blob filter
+            explanations. Default is `False`.
+        notebook_debug : bool, optional
+            If True, display images inline using `cv2_imshow` for debugging
+            inside Jupyter notebooks. Default is `False`.
+        """
         self.start_time = datetime.now()
         self.obs_id = obs_id
         self.masks = masks
