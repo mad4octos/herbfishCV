@@ -360,12 +360,12 @@ class MultiBuilder:
                 start_frame=Config.start_frame,
                 max_frames=Config.max_frames,
                 filename_num_zeros=Config.number_of_zeros,
-                verbose=False,
-                notebook_debug=False,
                 extracted_fps=extracted_fps,
                 final_fps=final_fps,
                 original_fps=original_fps,
                 sam2_start=sam2_start,
+                verbose=False,
+                notebook_debug=False,
             )
             dataset = builder.build()
 

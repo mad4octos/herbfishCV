@@ -56,13 +56,10 @@ class DatumaroDatasetBuilder:
         filename_num_zeros: int = 8,
         start_frame: int = 0,
         max_frames: int | None = None,
-        verbose: bool = False,
-        notebook_debug: bool = False,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
-        create_video=False,
         no_auto: bool = False,
         classifier: YOLO | None = None,
         bg_mode: Literal["gray", "overlay"] | None = None,
@@ -72,10 +69,13 @@ class DatumaroDatasetBuilder:
         blob_rules: Iterable[BlobRule] | None = None,
         anomaly_rules: Iterable[FishAnomalyRule] | None = None,
         window_size: int | None = None,
+        create_video: bool = False,
         video_fps: int | None = None,
         video_height: int | None = None,
         video_width: int | None = None,
         subset: str = "train",
+        verbose: bool = False,
+        notebook_debug: bool = False,
     ):
         """ """
         self.start_time = datetime.now()
