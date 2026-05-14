@@ -50,15 +50,7 @@ class DatumaroDatasetBuilder:
         annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         export_root_path: Path,
-        classifier: YOLO | None,
-        bg_mode: Literal["gray", "overlay"] | None,
-        blob_rules: Iterable[BlobRule],
-        window_size,
-        anomaly_rules: Iterable[FishAnomalyRule],
-        correct_class: str,
-        incorrect_class: str,
         images_path: Path,
-        incorrect_cls_conf_thresh: float = 0.5,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
         filename_num_zeros: int = 8,
@@ -66,12 +58,20 @@ class DatumaroDatasetBuilder:
         max_frames=None,
         verbose: bool = False,
         notebook_debug=False,
-        no_auto: bool = False,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
         create_video=False,
+        no_auto: bool = False,
+        classifier: YOLO | None = None,
+        bg_mode: Literal["gray", "overlay"] | None = None,
+        correct_class: str | None = None,
+        incorrect_class: str | None = None,
+        incorrect_cls_conf_thresh: float | None = None,
+        blob_rules: Iterable[BlobRule] | None = None,
+        anomaly_rules: Iterable[FishAnomalyRule] | None = None,
+        window_size: int | None = None,
         video_fps: int | None = None,
         video_height: int | None = None,
         video_width: int | None = None,
@@ -118,11 +118,40 @@ class DatumaroDatasetBuilder:
         self.max_frames = max_frames
         self.start_frame = start_frame
         self.blob_rules = blob_rules
-        self.anomaly_rules = anomaly_rules
         self.setup_logging(log_to_console=verbose)
-        self.tracker_manager = FishTrackerManager(
-            self.anomaly_rules, logger=self.logger, window_size=window_size
-        )
+        if self.no_auto:
+            self.tracker_manager = None
+        else:
+            if blob_rules is None:
+                raise ValueError("blob_rules is required when no_auto is False")
+            if anomaly_rules is None:
+                raise ValueError("anomaly_rules is required when no_auto is False")
+            if window_size is None:
+                raise ValueError("window_size is required when no_auto is False")
+            self.tracker_manager = FishTrackerManager(
+                anomaly_rules, logger=self.logger, window_size=window_size
+            )
+            if self.classifier is not None:
+                if correct_class is None:
+                    raise ValueError(
+                        "correct_class is required when classifier is not None"
+                    )
+                if incorrect_class is None:
+                    raise ValueError(
+                        "incorrect_class is required when classifier is not None"
+                    )
+                if incorrect_cls_conf_thresh is None:
+                    raise ValueError(
+                        "incorrect_cls_conf_thresh is required when classifier is not None"
+                    )
+                if bg_mode is None:
+                    raise ValueError(
+                        "`bg_mode` must be specified in the configuration when the classifier is used"
+                    )
+                self.class_to_index = {
+                    cls: idx for idx, cls in self.classifier.names.items()
+                }
+        self.bg_mode = bg_mode
         self.video_height = video_height
         self.video_width = video_width
         self.video_writer = None
@@ -138,14 +167,6 @@ class DatumaroDatasetBuilder:
             )
             self.create_video_writer(
                 fps=video_fps, height=video_height, width=video_width
-            )
-        self.bg_mode = bg_mode
-        if self.classifier is not None:
-            self.class_to_index = {
-                cls: idx for idx, cls in self.classifier.names.items()
-            }
-            assert self.bg_mode is not None, (
-                "`bg_mode` must be specified in the configuration when the classifier is used"
             )
 
     def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
@@ -430,7 +451,8 @@ class DatumaroDatasetBuilder:
             self.count_frames_with_errors += 1
             return
 
-        self.tracker_manager.filter_dead_trackers()
+        if self.tracker_manager is not None:
+            self.tracker_manager.filter_dead_trackers()
         if self.notebook_debug or (self.video_writer is not None):
             # Write frame index on the top left corner of the frame
             input_image = cv2.putText(
@@ -582,6 +604,7 @@ class DatumaroDatasetBuilder:
         self, dense_object_mask: np.ndarray, obj_id: int, extracted_frame_idx: int
     ) -> list[BlobInfo]:
         """Get filtered blobs from dense mask using the configured rules."""
+        assert self.blob_rules is not None
         valid_blobs = []
         for blob in get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx):
             for rule in self.blob_rules:
@@ -609,6 +632,11 @@ class DatumaroDatasetBuilder:
     ) -> list[BlobInfo]:
         """Get classified bounding boxes from blobs."""
         assert self.classifier is not None
+        assert (
+            self.correct_class is not None
+            and self.incorrect_class is not None
+            and self.incorrect_cls_conf_thresh is not None
+        )
 
         filtered_blobs = []
         for blob, masked_patch in zip(blobs, patches):
