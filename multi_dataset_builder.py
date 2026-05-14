@@ -131,6 +131,12 @@ Examples:
         type=Path,
         help="The absolute path to the directory containing the image frames.",
     )
+    parser.add_argument(
+        "--subset",
+        type=str,
+        default="train",
+        help="Datumaro dataset split name assigned to every exported item (e.g. train, val). Default: train.",
+    )
 
     args = parser.parse_args()
 
@@ -188,6 +194,7 @@ class MultiBuilder:
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
+        subset: str = "train",
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
@@ -200,6 +207,7 @@ class MultiBuilder:
         self.final_fps = final_fps
         self.original_fps = original_fps
         self.sam2_start = sam2_start
+        self.subset = subset
 
     def load_error_frames(
         self, obs_id: ParsedObservationID | ManualObservationID
@@ -290,6 +298,7 @@ class MultiBuilder:
                     final_fps=self.final_fps,
                     original_fps=self.original_fps,
                     sam2_start=self.sam2_start,
+                    subset=self.subset,
                 )
                 pbar.update(1)
 
@@ -311,6 +320,7 @@ class MultiBuilder:
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
+        subset: str = "train",
     ):
         """ """
         print(f"Creating job for observation '{obs_id}'")
@@ -366,6 +376,7 @@ class MultiBuilder:
                 sam2_start=sam2_start,
                 verbose=False,
                 notebook_debug=False,
+                subset=subset,
             )
             dataset = builder.build()
 
@@ -472,6 +483,7 @@ if __name__ == "__main__":
         final_fps=args.final_fps,
         original_fps=args.original_fps,
         sam2_start=args.sam2_start,
+        subset=args.subset,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)
