@@ -53,7 +53,7 @@ class DatumaroDatasetBuilder:
         images_path: Path,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
-        filename_num_zeros: int = 8,
+        filename_num_zeros: int = 5,
         start_frame: int = 0,
         max_frames: int | None = None,
         extracted_fps: int | None = None,
