@@ -403,32 +403,16 @@ class DatumaroDatasetBuilder:
         )
 
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
+        media = datumaro.components.media.Image.from_file(str(image_filepath))
 
         # For error frames, keep the click location by saving an annotation with an empty mask
         # rather than skipping the frame entirely.
-        media = datumaro.components.media.Image.from_file(str(image_filepath))
-        if extracted_frame_idx in self.error_frames:
-            annotations = self.create_empty_datumaro_annotations(blobs)
-            self.dataset_items.append(
-                datumaro.components.dataset_base.DatasetItem(
-                    id=filename.split(".")[0],
-                    subset=self.subset,
-                    media=media,
-                    annotations=annotations,
-                    attributes={"frame": extracted_frame_idx},
-                )
-            )
-
-            self.logger.warning(
-                f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
-            )
-            self.count_frames_with_errors += 1
-            return
-
-        annotations = self.create_datumaro_annotations(blobs)
-
-        self.tracker_manager.filter_dead_trackers()
-
+        is_error = extracted_frame_idx in self.error_frames
+        annotations = (
+            self.create_empty_datumaro_annotations(blobs)
+            if is_error
+            else self.create_datumaro_annotations(blobs)
+        )
         self.dataset_items.append(
             datumaro.components.dataset_base.DatasetItem(
                 id=filename.split(".")[0],
@@ -438,7 +422,14 @@ class DatumaroDatasetBuilder:
                 attributes={"frame": extracted_frame_idx},
             )
         )
+        if is_error:
+            self.logger.warning(
+                f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
+            )
+            self.count_frames_with_errors += 1
+            return
 
+        self.tracker_manager.filter_dead_trackers()
         if self.notebook_debug or (self.video_writer is not None):
             # Write frame index on the top left corner of the frame
             input_image = cv2.putText(
