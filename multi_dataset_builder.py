@@ -349,6 +349,7 @@ class MultiBuilder:
                 images_path=images_path,
                 export_root_path=run_dir,
                 classifier=classifier,
+                bg_mode=ClassifierConfig.bg_mode,
                 blob_rules=blob_filter_rules,
                 anomaly_rules=anomaly_rules,
                 incorrect_cls_conf_thresh=ClassifierConfig.incorrect_cls_conf_thresh,

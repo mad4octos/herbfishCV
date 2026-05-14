@@ -256,3 +256,5 @@ class ClassifierConfig:
 
     correct_class: str = "correct"
     incorrect_class: str = "incorrect"
+
+    bg_mode: Literal["gray", "overlay"] | None = None

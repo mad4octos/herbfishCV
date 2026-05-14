@@ -51,6 +51,7 @@ class DatumaroDatasetBuilder:
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
         export_root_path: Path,
         classifier: YOLO | None,
+        bg_mode: Literal["gray", "overlay"] | None,
         blob_rules: Iterable[BlobRule],
         window_size,
         anomaly_rules: Iterable[FishAnomalyRule],
@@ -138,10 +139,14 @@ class DatumaroDatasetBuilder:
             self.create_video_writer(
                 fps=video_fps, height=video_height, width=video_width
             )
+        self.bg_mode = bg_mode
         if self.classifier is not None:
             self.class_to_index = {
                 cls: idx for idx, cls in self.classifier.names.items()
             }
+            assert self.bg_mode is not None, (
+                "`bg_mode` must be specified in the configuration when the classifier is used"
+            )
 
     def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
         """
@@ -501,9 +506,8 @@ class DatumaroDatasetBuilder:
                 )
 
                 # Generate image crops based on blobs data
-                # FIXME: to extract patch into blob, set do_mask to False
                 blob_patches = self._get_blob_patches(
-                    original_image, filtered_blobs, do_mask=True
+                    original_image, filtered_blobs, bg_mode=self.bg_mode
                 )
 
                 # Filter blobs with a classifier, only correctly masked fish will be preserved
@@ -613,15 +617,13 @@ class DatumaroDatasetBuilder:
         return valid_blobs
 
     @staticmethod
-    def _get_blob_patches(input_image: np.ndarray, blobs: list[BlobInfo], do_mask=True):
+    def _get_blob_patches(
+        input_image: np.ndarray,
+        blobs: list[BlobInfo],
+        bg_mode: Literal["gray", "overlay"] | None = None,
+    ):
         """Return image patches, based on the blobs information"""
-        if do_mask:
-            return [
-                blob.mask_and_crop_blob(input_image, remove_background=False)
-                for blob in blobs
-            ]
-        else:
-            return [blob.crop_from_image(input_image) for blob in blobs]
+        return [blob.mask_and_crop_blob(input_image, bg_mode) for blob in blobs]
 
     def _classify_blobs(
         self, blobs: list[BlobInfo], patches: list[np.ndarray]

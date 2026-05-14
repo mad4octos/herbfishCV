@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Literal
 import torch
 import cv2
 import numpy as np
@@ -7,6 +7,8 @@ import numpy as np
 # Local imports
 from common import sparse_mask_tensor_to_dense_numpy, dense_mask_numpy_to_sparse_tensor
 from plot_utils import draw_mask_overlay
+
+YOLO_GRAY = (114, 114, 114)  # default YOLO letterbox fill value (BGR)
 
 
 @dataclass
@@ -55,17 +57,20 @@ class BlobInfo:
         return np.dstack([crop, alpha])
 
     def mask_and_crop_blob(
-        self, image: np.ndarray, remove_background=True, overlay_alpha=0.2
+        self,
+        image: np.ndarray,
+        bg_mode: Literal["gray", "overlay"] | None = None,
+        overlay_alpha: float = 0.2,
     ):
         """Mask and crop an image.
 
-        This function can either remove the background (default) or highlight the foreground (the blob)."""
+        This function can either make the background gray (default) or highlight the foreground (the blob)."""
 
         image = np.copy(image)
-        if remove_background:
-            # Preserve only the foreground object, make everything else black
-            image[self.get_dense_mask() != self.blob_num] = 0
-        else:
+        if bg_mode == "gray":
+            # Preserve only the foreground object, make everything else gray
+            image[self.get_dense_mask() != self.blob_num] = YOLO_GRAY
+        elif bg_mode == "overlay":
             image = draw_mask_overlay(
                 image,
                 self.get_dense_mask(),
