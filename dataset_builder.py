@@ -70,9 +70,10 @@ class DatumaroDatasetBuilder:
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
-        video_fps: int = 2,
-        video_height: int = 2160,
-        video_width: int = 3840,
+        create_video=False,
+        video_fps: int | None = None,
+        video_height: int | None = None,
+        video_width: int | None = None,
         subset: str = "train",
     ):
         """ """
@@ -123,7 +124,20 @@ class DatumaroDatasetBuilder:
         )
         self.video_height = video_height
         self.video_width = video_width
-        self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
+        self.video_writer = None
+        if create_video:
+            assert video_height is not None, (
+                "video_height must be specified when `create_video=True`"
+            )
+            assert video_width is not None, (
+                "video_width must be specified when `create_video=True`"
+            )
+            assert video_fps is not None, (
+                "video_fps must be specified when `create_video=True`"
+            )
+            self.create_video_writer(
+                fps=video_fps, height=video_height, width=video_width
+            )
         if self.classifier is not None:
             self.class_to_index = {
                 cls: idx for idx, cls in self.classifier.names.items()
@@ -476,7 +490,8 @@ class DatumaroDatasetBuilder:
                 )
                 if raw_blobs:
                     dominant_blob = max(raw_blobs, key=lambda b: b.area)
-                    self.draw_bbox_and_id(input_image, dominant_blob, "white")
+                    if self.notebook_debug or (self.video_writer is not None):
+                        self.draw_bbox_and_id(input_image, dominant_blob, "white")
                     all_blobs.append(dominant_blob)
             else:
                 # Filter blob by basic featurs like area and size, to remove small blobs
@@ -519,30 +534,34 @@ class DatumaroDatasetBuilder:
                     #   output dataset
 
                     if results["anomalies"]:
-                        # Draw a red rectangle and information regarding why a mask was rejected
-                        anomalies = ",".join(
-                            [f"{a['type']}({a['value']})" for a in results["anomalies"]]
-                        )
-                        self.draw_bbox_and_id(
-                            input_image,
-                            dominant_blob,
-                            "red",
-                            extra_text=f"({anomalies}",
-                        )
+
+                        if self.notebook_debug or (self.video_writer is not None):
+                            # Draw a red rectangle and information regarding why a mask was rejected
+                            anomalies = ",".join(
+                                [f"{a['type']}({a['value']})" for a in results["anomalies"]]
+                            )
+                            self.draw_bbox_and_id(
+                                input_image,
+                                dominant_blob,
+                                "red",
+                                extra_text=f"({anomalies}",
+                            )
 
                     else:
-                        # Draw a green box and label with the Object ID indicating that this blob has not been rejected
-                        self.draw_bbox_and_id(input_image, dominant_blob, "white")
+                        if self.notebook_debug or (self.video_writer is not None):
+                            # Draw a green box and label with the Object ID indicating that this blob has not been rejected
+                            self.draw_bbox_and_id(input_image, dominant_blob, "white")
                         all_blobs.append(dominant_blob)
 
-            input_image = draw_mask_overlay(
-                input_image,
-                dense_object_mask,
-                class_id=obj_id,
-                color=None,
-                alpha=0.5,
-                binary_mask=True,
-            )
+            if self.notebook_debug or (self.video_writer is not None):
+                input_image = draw_mask_overlay(
+                    input_image,
+                    dense_object_mask,
+                    class_id=obj_id,
+                    color=None,
+                    alpha=0.5,
+                    binary_mask=True,
+                )
 
         return all_blobs
 
