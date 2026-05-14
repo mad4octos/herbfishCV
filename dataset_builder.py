@@ -339,7 +339,8 @@ class DatumaroDatasetBuilder:
             try:
                 self._process_frame(extracted_frame_idx, frame_masks)
             except (FileNotFoundError, IOError):
-                self.video_writer.release()
+                if self.video_writer is not None:
+                    self.video_writer.release()
                 self.logger.exception(
                     f"Stopping: failed to load image for frame {extracted_frame_idx}."
                 )
