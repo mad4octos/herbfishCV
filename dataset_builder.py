@@ -612,7 +612,7 @@ class DatumaroDatasetBuilder:
         filtered_blobs = []
         for blob, masked_patch in zip(blobs, patches):
             results = self.classifier(masked_patch, verbose=False)[0]
-            incorrect_class_index = self.class_to_index[self.correct_class]
+            incorrect_class_index = self.class_to_index[self.incorrect_class]
             incorrect_class_pred_conf = results.probs.data[incorrect_class_index].item()
             pred_class = (
                 self.incorrect_class
