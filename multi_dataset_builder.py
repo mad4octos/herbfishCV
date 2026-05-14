@@ -258,7 +258,7 @@ class MultiBuilder:
                 if not self.ignore_missing_observation_ids:
                     raise ValueError(
                         f"Observation ID '{obs_id_object.to_str()}' not found in errors file.\n"
-                        "Run with --ignore-missing-observation-ids flag to ognore missing Observation IDs."
+                        "Run with --ignore-missing-observation-ids flag to ignore missing Observation IDs."
                     )
             elif isinstance(result, pd.DataFrame):
                 print(" - Found observation id in errors file")
