@@ -57,7 +57,7 @@ class DatumaroDatasetBuilder:
         anomaly_rules: Iterable[FishAnomalyRule],
         correct_class: str,
         incorrect_class: str,
-        images_path: Path | None = None,
+        images_path: Path,
         incorrect_cls_conf_thresh: float = 0.5,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
@@ -99,7 +99,7 @@ class DatumaroDatasetBuilder:
         self.chunked_df = chunked_df
         self.annotations_df = annotations_df
         self.label_categories = label_categories
-        self.images_path = Path(images_path) if images_path is not None else None
+        self.images_path = Path(images_path)
         self.export_root_path = export_root_path
         self.col_class_name = col_class_name
         self.col_instance_id = col_instance_id
@@ -359,9 +359,6 @@ class DatumaroDatasetBuilder:
     def _load_frame_image(self, extracted_frame_idx: int) -> tuple:
         """Load a frame image by index"""
         filename = _get_frame_filename(extracted_frame_idx, self.filename_num_zeros)
-        if self.images_path is None:
-            h, w = self.video_height, self.video_width
-            return filename, None, np.zeros((h, w, 3), dtype=np.uint8)
         image_filepath = self.images_path / filename
         if not image_filepath.exists():
             # look for any file that ends with the expected filename
@@ -409,12 +406,7 @@ class DatumaroDatasetBuilder:
 
         # For error frames, keep the click location by saving an annotation with an empty mask
         # rather than skipping the frame entirely.
-        media = (
-            datumaro.components.media.Image.from_numpy(input_image)
-            if image_filepath is None
-            else datumaro.components.media.Image.from_file(str(image_filepath))
-        )
-
+        media = datumaro.components.media.Image.from_file(str(image_filepath))
         if extracted_frame_idx in self.error_frames:
             annotations = self.create_empty_datumaro_annotations(blobs)
             self.dataset_items.append(
