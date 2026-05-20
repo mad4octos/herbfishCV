@@ -1,5 +1,5 @@
 """
-Iterates over every (frames_folder, mask_file) pair in the matched CSV and invokes extract_crops.py once per row 
+Iterates over every (frames_folder, mask_file) pair in the matched CSV and invokes extract_crops_from_sam2.py once per row 
 via subprocess.
 
 Usage:
@@ -31,7 +31,7 @@ for _, row in df.iterrows():
 
     cmd = [
         "python",
-        "extract_crops.py",
+        "extract_crops_from_sam2.py",
         "--images-dirpath",
         f"{FRAMES_BASE}/{frames}",
         "--masks-filepath",
