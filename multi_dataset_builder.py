@@ -131,6 +131,12 @@ Examples:
         type=Path,
         help="The absolute path to the directory containing the image frames.",
     )
+    parser.add_argument(
+        "--subset",
+        type=str,
+        default="train",
+        help="Datumaro dataset split name assigned to every exported item (e.g. train, val). Default: train.",
+    )
 
     args = parser.parse_args()
 
@@ -188,6 +194,7 @@ class MultiBuilder:
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
+        subset: str = "train",
     ) -> None:
         self.processes: list[mp.Process] = []
         self.obsId_to_folder_map = obsId_to_folder_map
@@ -200,6 +207,7 @@ class MultiBuilder:
         self.final_fps = final_fps
         self.original_fps = original_fps
         self.sam2_start = sam2_start
+        self.subset = subset
 
     def load_error_frames(
         self, obs_id: ParsedObservationID | ManualObservationID
@@ -258,7 +266,7 @@ class MultiBuilder:
                 if not self.ignore_missing_observation_ids:
                     raise ValueError(
                         f"Observation ID '{obs_id_object.to_str()}' not found in errors file.\n"
-                        "Run with --ignore-missing-observation-ids flag to ognore missing Observation IDs."
+                        "Run with --ignore-missing-observation-ids flag to ignore missing Observation IDs."
                     )
             elif isinstance(result, pd.DataFrame):
                 print(" - Found observation id in errors file")
@@ -290,6 +298,7 @@ class MultiBuilder:
                     final_fps=self.final_fps,
                     original_fps=self.original_fps,
                     sam2_start=self.sam2_start,
+                    subset=self.subset,
                 )
                 pbar.update(1)
 
@@ -311,13 +320,18 @@ class MultiBuilder:
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
+        subset: str = "train",
     ):
         """ """
         print(f"Creating job for observation '{obs_id}'")
 
         try:
-            print(f"Loading model weights from {ClassifierConfig.model_weights_path}")
-            classifier = YOLO(ClassifierConfig.model_weights_path)
+            if no_auto:
+                classifier = None
+            else:
+                weights_path = ClassifierConfig.model_weights_path
+                print(f"Loading model weights from {weights_path}")
+                classifier = YOLO(weights_path)
 
             masks = load_masks(masks_filepath)
             annotations_df = load_annotations(annot_filepath)
@@ -344,23 +358,25 @@ class MultiBuilder:
                 label_categories=label_categories,
                 images_path=images_path,
                 export_root_path=run_dir,
+                no_auto=no_auto,
                 classifier=classifier,
-                blob_rules=blob_filter_rules,
-                anomaly_rules=anomaly_rules,
-                incorrect_cls_conf_thresh=ClassifierConfig.incorrect_cls_conf_thresh,
+                bg_mode=ClassifierConfig.bg_mode,
                 correct_class=ClassifierConfig.correct_class,
                 incorrect_class=ClassifierConfig.incorrect_class,
+                incorrect_cls_conf_thresh=ClassifierConfig.incorrect_cls_conf_thresh,
+                blob_rules=blob_filter_rules,
+                anomaly_rules=anomaly_rules,
+                window_size=Config.window_size,
                 start_frame=Config.start_frame,
                 max_frames=Config.max_frames,
                 filename_num_zeros=Config.number_of_zeros,
-                verbose=False,
-                notebook_debug=False,
-                window_size=Config.window_size,
-                no_auto=no_auto,
                 extracted_fps=extracted_fps,
                 final_fps=final_fps,
                 original_fps=original_fps,
                 sam2_start=sam2_start,
+                verbose=False,
+                notebook_debug=False,
+                subset=subset,
             )
             dataset = builder.build()
 
@@ -467,6 +483,7 @@ if __name__ == "__main__":
         final_fps=args.final_fps,
         original_fps=args.original_fps,
         sam2_start=args.sam2_start,
+        subset=args.subset,
     )
     mb.verify_existence()
     mb.build_all(output_path=Config.output_path)

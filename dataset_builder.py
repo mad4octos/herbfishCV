@@ -49,32 +49,175 @@ class DatumaroDatasetBuilder:
         chunked_df: pd.DataFrame,
         annotations_df: pd.DataFrame,
         label_categories: datumaro.components.dataset_base.CategoriesInfo,
-        images_path: Path,
         export_root_path: Path,
-        classifier: YOLO | None,
-        blob_rules: Iterable[BlobRule],
-        window_size,
-        anomaly_rules: Iterable[FishAnomalyRule],
-        correct_class: str,
-        incorrect_class: str,
-        incorrect_cls_conf_thresh: float = 0.5,
+        images_path: Path,
         col_class_name: str = "ObjType",
         col_instance_id: str = "ObjID",
-        filename_num_zeros: int = 8,
-        start_frame=0,
-        max_frames=None,
-        verbose: bool = False,
-        notebook_debug=False,
-        no_auto: bool = False,
+        filename_num_zeros: int = 5,
+        start_frame: int = 0,
+        max_frames: int | None = None,
         extracted_fps: int | None = None,
         final_fps: int | None = None,
         original_fps: float | None = None,
         sam2_start: int | None = None,
-        video_fps: int = 2,
-        video_height: int = 2160,
-        video_width: int = 3840,
+        no_auto: bool = False,
+        classifier: YOLO | None = None,
+        bg_mode: Literal["gray", "overlay"] | None = None,
+        correct_class: str | None = None,
+        incorrect_class: str | None = None,
+        incorrect_cls_conf_thresh: float | None = None,
+        blob_rules: Iterable[BlobRule] | None = None,
+        anomaly_rules: Iterable[FishAnomalyRule] | None = None,
+        window_size: int | None = None,
+        create_video: bool = False,
+        video_fps: int | None = None,
+        video_height: int | None = None,
+        video_width: int | None = None,
+        subset: str = "train",
+        verbose: bool = False,
+        notebook_debug: bool = False,
     ):
-        """ """
+        """
+        Parameters
+        ----------
+        obs_id : str
+            Observation identifier.
+        masks : MasksType
+            Nested dictionary mapping frame indices to per-object sparse tensor
+            SAM2 masks. Structure: `{frame_idx: {obj_id: sparse_tensor, ...}, ...}`.
+        error_frames : list[int]
+            Frame indices (0-indexed) that had errors in the CSV file.
+            These frames are still exported as dataset items but with empty
+            mask annotations instead of real ones. Ground-truth click
+            location attributes are preserved only when blobs are detected
+            for the frame.
+        chunked_df : pd.DataFrame
+            DataFrame containing per-object metadata for the current observation
+            chunk. Must include columns for class name and instance ID (see
+            *col_class_name* and *col_instance_id*). Used to look up the label
+            for each detected object.
+        annotations_df : pd.DataFrame
+            DataFrame with ground-truth point annotations (click locations).
+            Expected columns: `ObjID`, `ClickType`, `Frame`, and
+            `Location`. Only rows where `ClickType == 1` are considered
+            when looking up the nearest ground-truth position for each
+            exported mask.
+        label_categories : datumaro.components.dataset_base.CategoriesInfo
+            Datumaro label category mapping that defines the set of classes
+            for the output dataset (e.g. fish species).
+        export_root_path : Path
+            Root directory where all outputs are written: the debug video and
+            log files. The Datumaro dataset is returned by `build` and
+            must be saved by the caller.
+        images_path : Path
+            Directory containing the extracted video frames as image files
+            (e.g. JPEGs). Frame filenames are expected to be zero-padded
+            integers (see *filename_num_zeros*).
+        col_class_name : str, optional
+            Column name in *chunked_df* that holds the object class/type
+            string. Default is `ObjType`.
+        col_instance_id : str, optional
+            Column name in *chunked_df* that holds the object instance ID.
+            Default is `ObjID`.
+        filename_num_zeros : int, optional
+            Number of zero-padded digits in the extracted frame filenames.
+            For example, `5` expects filenames like `00042.jpg`.
+            Default is `5`.
+        start_frame : int, optional
+            First frame index to process (inclusive). All frames before this
+            index are skipped. Default is `0`.
+        max_frames : int or None, optional
+            Maximum number of frames to process starting from *start_frame*.
+            `None` means process all available frames. Default is `None`.
+        extracted_fps : int or None, optional
+            Frame rate at which frames were extracted from the original video.
+            Used together with *final_fps* to compute the subsampling step,
+            and with *original_fps* / *sam2_start* for frame-number mapping.
+            Default is `None` (no subsampling or mapping).
+        final_fps : int or None, optional
+            Desired output frame rate. When both *extracted_fps* and
+            *final_fps* are provided, only every `extracted_fps // final_fps`
+            frame is processed. Default is `None`.
+        original_fps : float or None, optional
+            Frame rate of the original source video. Used to map extracted
+            frame indices back to the original video frame space (needed for
+            ground-truth annotation lookup). Default is `None`.
+        sam2_start : int or None, optional
+            Starting frame offset in the original video where SAM2 mask
+            propagation began. Used together with *original_fps* and
+            *extracted_fps* for the frame-number mapping formula:
+            `original_frame = extracted_frame * (original_fps / extracted_fps) + sam2_start`.
+            Default is `None`.
+        no_auto : bool, optional
+            If True, skip all automatic mask cleaning (blob filtering,
+            YOLO classification, and anomaly detection). Only the largest
+            blob per object is kept. Default is `False`.
+        classifier : YOLO or None, optional
+            A YOLO classification model instance (e.g. loaded via
+            `ultralytics.YOLO`). Called on cropped/masked blob patches to
+            verify that a detected blob belongs to the *correct_class*.
+            When provided and *no_auto* is False, *correct_class*,
+            *incorrect_class*, *incorrect_cls_conf_thresh*, and *bg_mode*
+            must also be set. Ignored when *no_auto* is True.
+            Default is `None`.
+        bg_mode : {"gray", "overlay"} or None, optional
+            Background style used when generating blob image patches for the
+            classifier. `gray` fills the background with a neutral grey;
+            `overlay` keeps the original image behind the masked blob.
+            Required when *classifier* is not `None`. Default is `None`.
+        correct_class : str or None, optional
+            Class name the classifier must predict for a blob to be accepted
+            (e.g. `fish`). Blobs predicted as *incorrect_class* are
+            discarded. Required when *classifier* is not `None`.
+            Default is `None`.
+        incorrect_class : str or None, optional
+            Class name used to label blobs that the classifier rejects.
+            Required when *classifier* is not `None`. Default is `None`.
+        incorrect_cls_conf_thresh : float or None, optional
+            Confidence threshold for the *incorrect_class* prediction. When
+            the classifier's confidence for the incorrect class meets or
+            exceeds this value, the blob is discarded. Required when
+            *classifier* is not `None`. Default is `None`.
+        blob_rules : Iterable[BlobRule] or None, optional
+            Sequence of blob filtering rules applied **before** classification.
+            Each rule is a callable that receives a `BlobInfo` and returns
+            `True` to keep or `False` to discard the blob based on
+            geometric properties (area, size, shape, etc.).
+            Required when *no_auto* is False. Default is `None`.
+        anomaly_rules : Iterable[FishAnomalyRule] or None, optional
+            Sequence of anomaly detection rules applied **after** tracking.
+            These evaluate temporal behavior (e.g. sudden changes in area or
+            shape over consecutive frames) to flag suspicious blobs.
+            Required when *no_auto* is False. Default is `None`.
+        window_size : int or None, optional
+            Sliding window size passed to `FishTrackerManager`. Controls how
+            many recent observations the anomaly detector considers when
+            evaluating temporal metrics. Required when *no_auto* is False.
+            Default is `None`.
+        create_video : bool, optional
+            If True, initialize a video writer and write a debug MP4 to
+            *export_root_path* showing bounding boxes and mask overlays for
+            every non-error processed frame. When True, *video_fps*, *video_height*,
+            and *video_width* must be specified. Default is `False`.
+        video_fps : int or None, optional
+            Frame rate for the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        video_height : int or None, optional
+            Height in pixels of the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        video_width : int or None, optional
+            Width in pixels of the debug output video. Required when
+            *create_video* is True. Default is `None`.
+        subset : str, optional
+            Datumaro dataset split name assigned to every exported item
+            (e.g. `train`, `val`). Default is `train`.
+        verbose : bool, optional
+            If True, enable console logging and print per-blob filter
+            explanations. Default is `False`.
+        notebook_debug : bool, optional
+            If True, display images inline using `cv2_imshow` for debugging
+            inside Jupyter notebooks. Default is `False`.
+        """
         self.start_time = datetime.now()
         self.obs_id = obs_id
         self.masks = masks
@@ -109,18 +252,62 @@ class DatumaroDatasetBuilder:
         self.count_frames_with_errors = 0
         self.notebook_debug = notebook_debug
         self.no_auto = no_auto
+        self.subset = subset
         self.correct_class = correct_class
         self.incorrect_class = incorrect_class
         self.max_frames = max_frames
         self.start_frame = start_frame
         self.blob_rules = blob_rules
-        self.anomaly_rules = anomaly_rules
         self.setup_logging(log_to_console=verbose)
-        self.tracker_manager = FishTrackerManager(
-            self.anomaly_rules, logger=self.logger, window_size=window_size
-        )
-        self.create_video_writer(fps=video_fps, height=video_height, width=video_width)
-        self.class_to_index = {cls: idx for idx, cls in self.classifier.names.items()}
+        if self.no_auto:
+            self.tracker_manager = None
+        else:
+            if blob_rules is None:
+                raise ValueError("blob_rules is required when no_auto is False")
+            if anomaly_rules is None:
+                raise ValueError("anomaly_rules is required when no_auto is False")
+            if window_size is None:
+                raise ValueError("window_size is required when no_auto is False")
+            self.tracker_manager = FishTrackerManager(
+                anomaly_rules, logger=self.logger, window_size=window_size
+            )
+            if self.classifier is not None:
+                if correct_class is None:
+                    raise ValueError(
+                        "correct_class is required when classifier is not None"
+                    )
+                if incorrect_class is None:
+                    raise ValueError(
+                        "incorrect_class is required when classifier is not None"
+                    )
+                if incorrect_cls_conf_thresh is None:
+                    raise ValueError(
+                        "incorrect_cls_conf_thresh is required when classifier is not None"
+                    )
+                if bg_mode is None:
+                    raise ValueError(
+                        "`bg_mode` must be specified in the configuration when the classifier is used"
+                    )
+                self.class_to_index = {
+                    cls: idx for idx, cls in self.classifier.names.items()
+                }
+        self.bg_mode = bg_mode
+        self.video_height = video_height
+        self.video_width = video_width
+        self.video_writer = None
+        if create_video:
+            assert video_height is not None, (
+                "video_height must be specified when `create_video=True`"
+            )
+            assert video_width is not None, (
+                "video_width must be specified when `create_video=True`"
+            )
+            assert video_fps is not None, (
+                "video_fps must be specified when `create_video=True`"
+            )
+            self.create_video_writer(
+                fps=video_fps, height=video_height, width=video_width
+            )
 
     def extracted_to_original_frame(self, extracted_frame_idx: int) -> int | None:
         """
@@ -185,6 +372,11 @@ class DatumaroDatasetBuilder:
         """
         original_frame = self.extracted_to_original_frame(extracted_frame_idx)
         if original_frame is None:
+            self.logger.warning(
+                f"Couldn't map extracted frame index {extracted_frame_idx} to original frame. "
+                f"No ground truth location will be available."
+                f"Probable cause: missing parameters original_fps, sam2_start, or extracted_fps."
+            )
             return None
 
         obj_rows = self.annotations_df[
@@ -313,7 +505,8 @@ class DatumaroDatasetBuilder:
             try:
                 self._process_frame(extracted_frame_idx, frame_masks)
             except (FileNotFoundError, IOError):
-                self.video_writer.release()
+                if self.video_writer is not None:
+                    self.video_writer.release()
                 self.logger.exception(
                     f"Stopping: failed to load image for frame {extracted_frame_idx}."
                 )
@@ -377,43 +570,34 @@ class DatumaroDatasetBuilder:
         )
 
         blobs = self._get_blobs(input_image, frame_masks, extracted_frame_idx)
+        media = datumaro.components.media.Image.from_file(str(image_filepath))
 
         # For error frames, keep the click location by saving an annotation with an empty mask
         # rather than skipping the frame entirely.
-        if extracted_frame_idx in self.error_frames:
-            annotations = self.create_empty_datumaro_annotations(blobs)
-            self.dataset_items.append(
-                datumaro.components.dataset_base.DatasetItem(
-                    id=filename.split(".")[0],
-                    subset="train",
-                    media=datumaro.components.media.Image.from_file(
-                        str(image_filepath)
-                    ),
-                    annotations=annotations,
-                    attributes={"frame": extracted_frame_idx},
-                )
+        is_error = extracted_frame_idx in self.error_frames
+        annotations = (
+            self.create_empty_datumaro_annotations(blobs)
+            if is_error
+            else self.create_datumaro_annotations(blobs)
+        )
+        self.dataset_items.append(
+            datumaro.components.dataset_base.DatasetItem(
+                id=filename.split(".")[0],
+                subset=self.subset,
+                media=media,
+                annotations=annotations,
+                attributes={"frame": extracted_frame_idx},
             )
-
+        )
+        if is_error:
             self.logger.warning(
                 f"Frame {extracted_frame_idx} has associated errors in the CSV. Skipping."
             )
             self.count_frames_with_errors += 1
             return
 
-        annotations = self.create_datumaro_annotations(blobs)
-
-        self.tracker_manager.filter_dead_trackers()
-
-        self.dataset_items.append(
-            datumaro.components.dataset_base.DatasetItem(
-                id=filename.split(".")[0],
-                subset="train",
-                media=datumaro.components.media.Image.from_file(str(image_filepath)),
-                annotations=annotations,
-                attributes={"frame": extracted_frame_idx},
-            )
-        )
-
+        if self.tracker_manager is not None:
+            self.tracker_manager.filter_dead_trackers()
         if self.notebook_debug or (self.video_writer is not None):
             # Write frame index on the top left corner of the frame
             input_image = cv2.putText(
@@ -462,7 +646,8 @@ class DatumaroDatasetBuilder:
                 )
                 if raw_blobs:
                     dominant_blob = max(raw_blobs, key=lambda b: b.area)
-                    self.draw_bbox_and_id(input_image, dominant_blob, "white")
+                    if self.notebook_debug or (self.video_writer is not None):
+                        self.draw_bbox_and_id(input_image, dominant_blob, "white")
                     all_blobs.append(dominant_blob)
             else:
                 # Filter blob by basic featurs like area and size, to remove small blobs
@@ -472,18 +657,12 @@ class DatumaroDatasetBuilder:
                 )
 
                 # Generate image crops based on blobs data
-                # FIXME: to extract patch into blob, set do_mask to False
                 blob_patches = self._get_blob_patches(
-                    original_image, filtered_blobs, do_mask=True
+                    original_image, filtered_blobs, bg_mode=self.bg_mode
                 )
 
                 # Filter blobs with a classifier, only correctly masked fish will be preserved
                 classified_blobs = self._classify_blobs(filtered_blobs, blob_patches)
-
-                # FIXME: debug only!
-                # for blob, masked_patch in zip(filtered_blobs, blob_patches):
-                #    blob.patch = masked_patch
-
                 if classified_blobs:
                     # Preserve the largest blob
                     dominant_blob = max(classified_blobs, key=lambda b: b.area)
@@ -505,30 +684,34 @@ class DatumaroDatasetBuilder:
                     #   output dataset
 
                     if results["anomalies"]:
-                        # Draw a red rectangle and information regarding why a mask was rejected
-                        anomalies = ",".join(
-                            [f"{a['type']}({a['value']})" for a in results["anomalies"]]
-                        )
-                        self.draw_bbox_and_id(
-                            input_image,
-                            dominant_blob,
-                            "red",
-                            extra_text=f"({anomalies}",
-                        )
+
+                        if self.notebook_debug or (self.video_writer is not None):
+                            # Draw a red rectangle and information regarding why a mask was rejected
+                            anomalies = ",".join(
+                                [f"{a['type']}({a['value']})" for a in results["anomalies"]]
+                            )
+                            self.draw_bbox_and_id(
+                                input_image,
+                                dominant_blob,
+                                "red",
+                                extra_text=f"({anomalies}",
+                            )
 
                     else:
-                        # Draw a green box and label with the Object ID indicating that this blob has not been rejected
-                        self.draw_bbox_and_id(input_image, dominant_blob, "white")
+                        if self.notebook_debug or (self.video_writer is not None):
+                            # Draw a green box and label with the Object ID indicating that this blob has not been rejected
+                            self.draw_bbox_and_id(input_image, dominant_blob, "white")
                         all_blobs.append(dominant_blob)
 
-            input_image = draw_mask_overlay(
-                input_image,
-                dense_object_mask,
-                class_id=obj_id,
-                color=None,
-                alpha=0.5,
-                binary_mask=True,
-            )
+            if self.notebook_debug or (self.video_writer is not None):
+                input_image = draw_mask_overlay(
+                    input_image,
+                    dense_object_mask,
+                    class_id=obj_id,
+                    color=None,
+                    alpha=0.5,
+                    binary_mask=True,
+                )
 
         return all_blobs
 
@@ -566,6 +749,7 @@ class DatumaroDatasetBuilder:
         self, dense_object_mask: np.ndarray, obj_id: int, extracted_frame_idx: int
     ) -> list[BlobInfo]:
         """Get filtered blobs from dense mask using the configured rules."""
+        assert self.blob_rules is not None
         valid_blobs = []
         for blob in get_blobs_from_mask(dense_object_mask, obj_id, extracted_frame_idx):
             for rule in self.blob_rules:
@@ -580,25 +764,29 @@ class DatumaroDatasetBuilder:
         return valid_blobs
 
     @staticmethod
-    def _get_blob_patches(input_image: np.ndarray, blobs: list[BlobInfo], do_mask=True):
+    def _get_blob_patches(
+        input_image: np.ndarray,
+        blobs: list[BlobInfo],
+        bg_mode: Literal["gray", "overlay"] | None = None,
+    ):
         """Return image patches, based on the blobs information"""
-        if do_mask:
-            return [
-                blob.mask_and_crop_blob(input_image, remove_background=False)
-                for blob in blobs
-            ]
-        else:
-            return [blob.crop_from_image(input_image) for blob in blobs]
+        return [blob.mask_and_crop_blob(input_image, bg_mode) for blob in blobs]
 
     def _classify_blobs(
         self, blobs: list[BlobInfo], patches: list[np.ndarray]
     ) -> list[BlobInfo]:
         """Get classified bounding boxes from blobs."""
+        assert self.classifier is not None
+        assert (
+            self.correct_class is not None
+            and self.incorrect_class is not None
+            and self.incorrect_cls_conf_thresh is not None
+        )
 
         filtered_blobs = []
         for blob, masked_patch in zip(blobs, patches):
             results = self.classifier(masked_patch, verbose=False)[0]
-            incorrect_class_index = self.class_to_index[self.correct_class]
+            incorrect_class_index = self.class_to_index[self.incorrect_class]
             incorrect_class_pred_conf = results.probs.data[incorrect_class_index].item()
             pred_class = (
                 self.incorrect_class

@@ -117,7 +117,7 @@ class ParsedObservationID:
         # Validate side
         if self.side.lower() not in {"left", "right"}:
             raise ValueError(
-                f"Invalid side: {self.direction!r}. Must be 'left' or 'right' (case-insensitive)."
+                f"Invalid side: {self.side!r}. Must be 'left' or 'right' (case-insensitive)."
             )
 
     def to_str(
@@ -256,3 +256,5 @@ class ClassifierConfig:
 
     correct_class: str = "correct"
     incorrect_class: str = "incorrect"
+
+    bg_mode: Literal["gray", "overlay"] | None = None
