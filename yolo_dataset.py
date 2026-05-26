@@ -1,13 +1,22 @@
+# Standard Library imports
+import copy
+import random
+from collections import Counter
+
 # External impors
 import cv2
 import numpy as np
+import numpy.typing as npt
 import torch
 from PIL import Image
 from sklearn.metrics import f1_score
 from ultralytics.data import ClassificationDataset
 from ultralytics.models.yolo.classify import ClassificationValidator
 from ultralytics.models.yolo.classify.train import ClassificationTrainer
+from ultralytics.utils import LOGGER
 from ultralytics.utils.metrics import ClassifyMetrics
+from ultralytics.utils.torch_utils import is_parallel, torch_distributed_zero_first
+from ultralytics.data import build_dataloader
 
 # Local imports
 from plot_utils import draw_mask_overlay
@@ -16,17 +25,130 @@ YOLO_GRAY = (114, 114, 114)  # default YOLO letterbox fill value (BGR)
 
 
 class RGBAClassificationDataset(ClassificationDataset):
-    def __init__(self, *args, bg_mode: str = "gray", **kwargs):
+    def __init__(self, *pos_args, bg_mode: str = "gray", **kwargs):
         """
         Args:
             bg_mode (str): How to handle the background (alpha == 0) region.
                 "gray"    : replace background with YOLO gray (114, 114, 114). Default.
                 "overlay" : draw a semi-transparent red overlay on the foreground.
         """
-        super().__init__(*args, **kwargs)
         if bg_mode not in ("gray", "overlay"):
             raise ValueError(f"bg_mode must be 'gray' or 'overlay', got '{bg_mode}'")
+
+        namespace_args = kwargs.get("args")
+        augment = kwargs.get("augment", False)
+        fraction = getattr(namespace_args, "fraction", 1.0)
+
+        # Prevent the parent from slicing all samples uniformly; apply fraction
+        # selectively to the majority class only (to reduce class imbalance and speed up training).
+        if namespace_args is not None and fraction < 1.0:
+            modified_namespace = copy.copy(namespace_args)
+            modified_namespace.fraction = 1.0
+            kwargs = {**kwargs, "args": modified_namespace}
+
+        super().__init__(*pos_args, **kwargs)
+
+        # augment=True only during training (build_dataset passes augment=mode=="train")
+        if augment and fraction < 1.0:
+            self._apply_fraction_to_majority(fraction)
+
         self.bg_mode = bg_mode
+        self.train_mode = "train" in self.prefix
+        self.probabilities = self._compute_probabilities()
+
+    def _apply_fraction_to_majority(self, fraction: float) -> None:
+        """Reduce the majority class to `fraction` of its original size.
+
+        Leaves all minority classes untouched, so the net effect is to shrink
+        the class imbalance rather than uniformly sub-sampling every class.
+
+        Args:
+            fraction: Proportion of majority-class samples to keep (0 < fraction < 1).
+        """
+        class_indices = np.array([s[1] for s in self.samples])
+        majority_class = int(np.bincount(class_indices).argmax())
+
+        majority_samples = [s for s in self.samples if s[1] == majority_class]
+        minority_samples = [s for s in self.samples if s[1] != majority_class]
+
+        n_before = len(majority_samples)
+        random.shuffle(majority_samples)
+        majority_samples = majority_samples[: round(n_before * fraction)]
+        n_after = len(majority_samples)
+        self.samples = majority_samples + minority_samples
+
+        self._log_fraction_result(
+            fraction, majority_class, n_before, n_after, minority_samples
+        )
+
+    def _log_fraction_result(
+        self,
+        fraction: float,
+        majority_class: int,
+        n_before: int,
+        n_after: int,
+        minority_samples: list,
+    ) -> None:
+        """Log a per-class summary of the fraction sub-sampling applied to the majority class.
+
+        Args:
+            fraction: The fraction that was applied.
+            majority_class: Class index of the majority class.
+            n_before: Number of majority-class samples before sub-sampling.
+            n_after: Number of majority-class samples after sub-sampling.
+            minority_samples: Remaining (untouched) samples from all non-majority classes.
+        """
+        class_names = self.base.classes
+        minority_counts = Counter(s[1] for s in minority_samples)
+        lines = [
+            f"{self.prefix}fraction={fraction} applied to majority class only:",
+            f"  {class_names[majority_class]}: {n_before} -> {n_after} samples",
+            *(
+                f"  {class_names[i]}: {n} -> {n} samples (unchanged)"
+                for i, n in sorted(minority_counts.items())
+            ),
+        ]
+        LOGGER.info("\n".join(lines))
+
+    def _count_samples_per_class(
+        self, class_indices: npt.NDArray[np.int64]
+    ) -> npt.NDArray[np.float32]:
+        """
+        Count the number of samples belonging to each class, returning an array of
+        length `len(self.base.classes)`. Classes with zero samples are reported as
+        1 so the result can safely be used as a divisor downstream.
+
+        Args:
+            class_indices: Class index for each sample.
+
+        Returns:
+            Sample count per class, with zeros replaced by 1.
+        """
+        counts_per_class = np.bincount(
+            class_indices, minlength=len(self.base.classes)
+        ).astype(np.float32)
+        counts_per_class = np.where(counts_per_class == 0, 1, counts_per_class)
+        return counts_per_class
+
+    def _compute_probabilities(self) -> npt.NDArray[np.float32]:
+        """
+        Compute a per-sample sampling probability inversely proportional to class frequency.
+
+        Each sample is assigned weight 1/count(class), so within every class the
+        individual weights sum to exactly 1.0 regardless of class size. Normalizing
+        over all samples therefore gives each class an equal share of the probability
+        mass, producing a uniform distribution across classes and causing rare classes
+        to be oversampled relative to their frequency in the dataset.
+
+        Returns:
+            Float array of length len(self.samples) with per-sample probabilities
+            summing to 1.
+        """
+        class_indices = np.array([s[1] for s in self.samples], dtype=np.int64)
+        counts_per_class = self._count_samples_per_class(class_indices)
+        inv_freq_per_class = 1.0 / counts_per_class
+        inv_freq_per_sample = inv_freq_per_class[class_indices]
+        return inv_freq_per_sample / inv_freq_per_sample.sum()
 
     def __getitem__(self, i: int) -> dict:
         """
@@ -39,6 +161,10 @@ class RGBAClassificationDataset(ClassificationDataset):
         Returns:
             (dict): Dictionary containing the image and its class index.
         """
+
+        if self.train_mode:
+            i = np.random.choice(len(self.samples), p=self.probabilities)
+
         # filename, index, filename.with_suffix('.npy'), image
         f, j, fn, im = self.samples[i]
         if self.cache_ram:
@@ -125,12 +251,46 @@ class RGBClassificationTrainer(ClassificationTrainer):
             batch (Any, optional): Batch information (unused in this implementation).
 
         Returns:
-            (ClassificationDataset): Dataset for the specified mode.
+            (RGBAClassificationDataset): Dataset for the specified mode.
         """
         return RGBAClassificationDataset(
-            root=img_path, args=self.args, augment=mode == "train", prefix=mode,
+            root=img_path,
+            args=self.args,
+            augment=mode == "train",
+            prefix=mode,
             bg_mode=self.bg_mode,
         )
+
+    def get_dataloader(
+        self,
+        dataset_path: str,
+        batch_size: int = 16,
+        rank: int = 0,
+        mode: str = "train",
+    ):
+        """The only difference betwen this method and the original ultralytics 8.3.227
+        ClassificationTrainer.get_dataloader is that build_dataloader is called with pin_memory=False.
+        This fixes OOM erros when running multiple trials with Optuna.
+        """
+        # init dataset *.cache only once if DDP
+        with torch_distributed_zero_first(rank):
+            dataset = self.build_dataset(dataset_path, mode)
+
+        loader = build_dataloader(
+            dataset,
+            batch_size,
+            self.args.workers,
+            rank=rank,
+            drop_last=self.args.compile,
+            pin_memory=False,
+        )
+        # Attach inference transforms
+        if mode != "train":
+            if is_parallel(self.model):
+                self.model.module.transforms = loader.dataset.torch_transforms
+            else:
+                self.model.transforms = loader.dataset.torch_transforms
+        return loader
 
     def get_validator(self):
         self.loss_names = ["loss"]

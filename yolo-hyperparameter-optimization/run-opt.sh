@@ -8,26 +8,19 @@ command -v python3 >/dev/null 2>&1 || { echo "Python 3 is required but not insta
 
 # Parse command line arguments
 DATA=""
-MODEL="yolo11n-cls.pt"
-EPOCHS=40
-FINAL_EPOCHS=100
-TRIALS=300
-IMGSZ=224
+EPOCHS=10
+FINAL_EPOCHS=30
+TRIALS=100
 DEVICE="0"
-WORKERS=4
-BG_MODE="overlay"
+WORKERS=10
 INCORRECT_CLASS="incorrect"
+FRACTION=1.0
 
 while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
     --data)
       DATA="$2"
-      shift
-      shift
-      ;;
-    --model)
-      MODEL="$2"
       shift
       shift
       ;;
@@ -38,11 +31,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --final-epochs)
       FINAL_EPOCHS="$2"
-      shift
-      shift
-      ;;
-    --imgsz)
-      IMGSZ="$2"
       shift
       shift
       ;;
@@ -61,13 +49,13 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --bg-mode)
-      BG_MODE="$2"
+    --incorrect-class)
+      INCORRECT_CLASS="$2"
       shift
       shift
       ;;
-    --incorrect-class)
-      INCORRECT_CLASS="$2"
+    --fraction)
+      FRACTION="$2"
       shift
       shift
       ;;
@@ -81,23 +69,22 @@ done
 # Check if data argument is provided
 if [ -z "$DATA" ]; then
   echo "Error: --data argument is required."
-  echo "Usage: ./run-opt.sh --data path/to/data.yaml [--model yolo11n-cls.pt] [--epochs 40] [--final-epochs 100] [--imgsz 224] [--trials 300] [--device 0] [--workers 4] [--bg-mode overlay] [--incorrect-class incorrect]"
+  echo "Usage: ./run-opt.sh --data path/to/data [--epochs 10] [--final-epochs 30] [--trials 100] [--device 0] [--workers 10] [--incorrect-class incorrect] [--fraction 1.0]"
   exit 1
-fi
-
-# Ensure model path is absolute
-if [[ "$MODEL" != /* ]] && [[ "$MODEL" != ./* ]]; then
-  if [ -f "$MODEL" ]; then
-    MODEL="$(pwd)/$MODEL"
-    echo "Converted model path to absolute: $MODEL"
-  fi
-  # Otherwise, assume it's a model name from the YOLO model hub
 fi
 
 # Ensure data path is absolute
 if [[ "$DATA" != /* ]] && [[ "$DATA" != ./* ]]; then
   DATA="$(pwd)/$DATA"
   echo "Converted data path to absolute: $DATA"
+fi
+
+# Copy data to local SSD (Approximately 300 GB/node)
+# https://curc.readthedocs.io/en/latest/compute/filesystems.html#local-scratch-on-alpine-and-blanca
+if [[ -n "${SLURM_SCRATCH}" ]]; then
+  cp -r "$DATA" "$SLURM_SCRATCH"
+  DATA="$SLURM_SCRATCH/$(basename "$DATA")"
+  echo "Using local SSD copy: $DATA"
 fi
 
 # Create project directories
@@ -110,15 +97,15 @@ echo "========================================"
 echo "YOLO Classification Optimization Pipeline"
 echo "========================================"
 echo "Data:              $DATA"
-echo "Model:             $MODEL"
+echo "Models searched:   yolo11n-cls.pt, yolo11s-cls.pt"
 echo "Epochs per trial:  $EPOCHS"
 echo "Final epochs:      $FINAL_EPOCHS"
-echo "Final imgsz:       $IMGSZ"
 echo "Number of trials:  $TRIALS"
 echo "Device:            $DEVICE"
 echo "Workers:           $WORKERS"
-echo "Background mode:   $BG_MODE"
+echo "Background mode:   optimized (searched during Bayesian opt)"
 echo "Incorrect class:   $INCORRECT_CLASS"
+echo "Fraction:          $FRACTION"
 echo "Project directory: $(pwd)"
 echo "========================================"
 
@@ -126,14 +113,13 @@ echo "========================================"
 echo "[1/2] Running Bayesian hyperparameter optimization..."
 python3 ../bayesian-opt-yolo.py \
   --data "$DATA" \
-  --model "$MODEL" \
   --epochs $EPOCHS \
   --trials $TRIALS \
   --device $DEVICE \
   --workers $WORKERS \
-  --bg-mode "$BG_MODE" \
   --incorrect-class "$INCORRECT_CLASS" \
-  --project ./optimization_results
+  --fraction $FRACTION \
+  --project ./trials
 
 # Check if optimization completed successfully
 if [ ! -f "./best_hyperparameters.yaml" ]; then
@@ -146,11 +132,11 @@ echo "Optimization completed. Best hyperparameters saved to best_hyperparameters
 echo "[2/2] Training final model with best hyperparameters..."
 python3 ../train-final.py \
   --data "$DATA" \
-  --model "$MODEL" \
   --epochs $FINAL_EPOCHS \
   --device "$DEVICE" \
-  --bg-mode "$BG_MODE" \
+  --workers $WORKERS \
   --incorrect-class "$INCORRECT_CLASS" \
+  --fraction $FRACTION \
   --hyp ./best_hyperparameters.yaml \
   --project ./final_model
 
@@ -167,8 +153,14 @@ echo "Optimization pipeline completed!"
 echo "========================================"
 echo "Results summary:"
 echo "- Best hyperparameters:        ./best_hyperparameters.yaml"
+echo "- Best trial evaluation:       ./best_trial_results.txt"
+echo "- Best trial threshold plot:   ./best_trial_results.threshold_plot.png"
 echo "- Final model:                 $FINAL_MODEL"
-echo "- Optimization visualizations: ./optimization_history.html"
+echo "- Final model evaluation:      ./final_training_results.txt"
+echo "- Final model threshold plot:  ./final_training_results.threshold_plot.png"
+echo "- Optimization history:        ./optimization_history.html"
+echo "- Parameter importances:       ./param_importances.html"
+echo "- Contour plot:                ./contour_plot.html"
 echo "========================================"
 echo "To use the optimized model, run:"
 echo "from ultralytics import YOLO"

@@ -13,6 +13,7 @@ import yaml
 from ultralytics import YOLO
 
 # Local imports
+from yolo_callbacks import LossPlotCallbacks
 from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
 
@@ -20,9 +21,6 @@ from yolo_tools import evaluate_and_report
 def main():
     parser = argparse.ArgumentParser(
         description="Final training with best hyperparameters"
-    )
-    parser.add_argument(
-        "--model", type=str, default="yolo11n-cls.pt", help="Model path"
     )
     parser.add_argument(
         "--data",
@@ -44,17 +42,22 @@ def main():
         help="Path to hyperparameters YAML",
     )
     parser.add_argument(
-        "--bg-mode",
-        type=str,
-        default="overlay",
-        choices=["gray", "overlay"],
-        help="Background mode for RGBA images passed to RGBClassificationTrainer",
-    )
-    parser.add_argument(
         "--incorrect-class",
         type=str,
         default="incorrect",
         help="Name of the positive (incorrect) class used for threshold search",
+    )
+    parser.add_argument(
+        "--fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of dataset to use (0.0–1.0). Use a small value (e.g. 0.1) for quick smoke-test runs.",
+    )
+    parser.add_argument(
+        "--name", type=str, default="final_train", help="Run name (subfolder under project)"
+    )
+    parser.add_argument(
+        "--workers", type=int, default=4, help="Number of dataloader workers"
     )
     args = parser.parse_args()
 
@@ -66,12 +69,21 @@ def main():
     for key, value in hyp.items():
         print(f"  {key}: {value}")
 
-    # Set bg_mode on the class before initializing the model
-    RGBClassificationTrainer.bg_mode = args.bg_mode
+    # bg_mode and model are not YOLO train args — remove before passing to model.train()
+    bg_mode = hyp.pop("bg_mode")
+    RGBClassificationTrainer.bg_mode = bg_mode
+    model_name = hyp.pop("model")
 
     # Initialize the model
-    print(f"\nInitializing model: {args.model}")
-    model = YOLO(args.model)
+    print(f"\nInitializing model: {model_name}")
+    model = YOLO(model_name)
+
+    names = sorted(p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir())
+    cbs = LossPlotCallbacks(mode="classification", names=names)
+    model.add_callback("on_train_start", cbs.on_train_start)
+    model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
+    model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
+    model.add_callback("on_val_end", cbs.on_val_end)
 
     # Train with best hyperparameters
     print("\nStarting training with best hyperparameters...")
@@ -80,18 +92,26 @@ def main():
         epochs=args.epochs,
         device=args.device,
         project=args.project,
+        name=args.name,
+        workers=args.workers,
         trainer=RGBClassificationTrainer,
+        val=True,
         deterministic=True,
+        fraction=args.fraction,
+        optimizer="auto",
         **hyp,
     )
 
     print("\nTraining complete!")
 
     batch_size = hyp.get("batch", 16)
+    imgsz = hyp.get("imgsz", 224)
+    scale = hyp.get("scale", 0.0)
     hyp_lines = "\n".join(f"  {k}: {v}" for k, v in hyp.items())
     header = (
         f"FINAL TRAINING RESULTS\n"
-        f"Model: {args.model}\n"
+        f"Model: {model_name}\n"
+        f"bg_mode: {bg_mode}\n"
         f"Epochs: {args.epochs}\n"
         f"Hyperparameters file: {args.hyp}\n"
         f"Hyperparameters:\n{hyp_lines}\n\n"
@@ -100,9 +120,12 @@ def main():
         model,
         Path(args.data),
         batch_size,
+        imgsz,
         args.incorrect_class,
         header,
-        Path(args.project) / "final_training_results.txt",
+        "final_training_results.txt",
+        bg_mode=bg_mode,
+        scale=scale,
     )
 
 

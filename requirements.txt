@@ -3,3 +3,4 @@ datumaro[default] @ git+https://github.com/cvat-ai/datumaro@866f27c70970467b169c
 ultralytics
 thefuzz
 statsmodels
+optuna

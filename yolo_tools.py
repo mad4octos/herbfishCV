@@ -1,12 +1,16 @@
 # Standard library imports
 from pathlib import Path
+from types import SimpleNamespace
 
 # External imports
 import matplotlib.pyplot as plt
 import torch
 from sklearn.metrics import classification_report
+from torch.utils.data import DataLoader
 from ultralytics import YOLO
-from ultralytics.models.yolo.classify.val import ClassificationValidator
+
+# Local imports
+from yolo_dataset import RGBAClassificationDataset
 
 """
 Ultralytics' built-in .val() evaluates classification accuracy using argmax
@@ -26,7 +30,8 @@ def find_best_threshold(
     positive_class_confs: torch.Tensor,  # (N,)
     targets: torch.Tensor,  # (N,) binary ground truth
     n_thresholds: int = 200,
-    plot: bool = True,
+    plot_path: Path | None = None,
+    show: bool = False,
 ) -> tuple[float, float]:
     """
     Sweep confidence thresholds and find the one maximising F1.
@@ -56,7 +61,7 @@ def find_best_threshold(
     best_threshold = thresholds[best_idx].item()
     best_f1 = f1_scores[best_idx].item()
 
-    if plot:
+    if plot_path is not None or show:
         t_np = thresholds.numpy()
         f1_np = f1_scores.numpy()
         pr_np = precision.numpy()
@@ -99,21 +104,26 @@ def find_best_threshold(
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.show()
+        if plot_path is not None:
+            fig.savefig(plot_path, dpi=300, bbox_inches="tight")
+        
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
 
     return best_threshold, best_f1
 
 
 def get_targets_and_confs(
-    model: YOLO, dataloader, positive_class_name: str
+    model: YOLO, dataloader: DataLoader, positive_class_name: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Run inference over the dataloader and collect top-1 predictions,
-    positive-class confidences, and ground truth labels.
+    Run inference over the dataloader to collect ground truth labels and positive-class confidences.
 
     Returns:
-        pos_confs:   (N,) confidence of the positive class
         all_targets: (N,) ground truth labels
+        pos_confs:   (N,) confidence of the positive class
     """
     class_idx = next(
         i for i, name in model.names.items() if name == positive_class_name
@@ -136,51 +146,77 @@ def get_targets_and_confs(
     )
 
 
+def _make_rgba_dataloader(
+    data_path: Path, batch_size: int, bg_mode: str, imgsz: int, scale: float = 0.0
+) -> DataLoader:
+    dataset_args = SimpleNamespace(imgsz=imgsz, cache=False, fraction=1.0, scale=scale)
+    dataset = RGBAClassificationDataset(
+        root=str(data_path),
+        args=dataset_args,
+        augment=False,
+        prefix=data_path.name,
+        bg_mode=bg_mode,
+    )
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+
 def evaluate_and_report(
     model: YOLO,
     data_root: Path,
     batch_size: int,
+    imgsz: int,
     incorrect_class: str,
     header: str,
-    report_path: Path,
+    report_path: Path|str,
+    bg_mode: str = "gray",
+    scale: float = 0.0,
 ) -> tuple[float, float]:
     """
-    Find the best confidence threshold on the val split, evaluate on the test
-    split, print the classification report, and write a summary to disk.
+    Find the best confidence threshold on the val split and evaluate on the test split.
+
+    The threshold maximizes F1 for `incorrect_class` on val, then applies that fixed
+    threshold to produce test predictions. Writes a text summary to `report_path` and a
+    threshold-vs-F1 plot alongside it.
 
     Returns:
-        best_threshold, best_f1
+        best_threshold: Confidence cutoff selected on the val split.
+        best_f1: F1 of `incorrect_class` at that threshold on the val split.
     """
-    val_dataloader = ClassificationValidator().get_dataloader(
-        data_root / "val", batch_size
-    )
-    test_dataloader = ClassificationValidator().get_dataloader(
-        data_root / "test", batch_size
-    )
+    report_path = Path(report_path)
+
+    val_dataloader = _make_rgba_dataloader(data_root / "val", batch_size, bg_mode, imgsz, scale)
+    test_dataloader = _make_rgba_dataloader(data_root / "test", batch_size, bg_mode, imgsz, scale)
     val_targets, val_confs = get_targets_and_confs(
         model, val_dataloader, positive_class_name=incorrect_class
     )
     test_targets, test_confs = get_targets_and_confs(
         model, test_dataloader, positive_class_name=incorrect_class
     )
-    best_t, best_f1 = find_best_threshold(val_confs, val_targets)
-    print(f"Best threshold: {best_t:.3f}  →  F1 max: {best_f1:.3f}")
-    preds = (test_confs >= best_t).to(torch.uint8)
-    report = classification_report(
-        test_targets, preds, target_names=list(model.names.values()), digits=3
+    best_val_thresh, best_val_f1 = find_best_threshold(
+        val_confs, val_targets, plot_path=report_path.with_suffix(".threshold_plot.png")
     )
-    print(report)
+    print(
+        f"Best threshold with respect to '{incorrect_class}' class (val set): {best_val_thresh:.3f}\n"
+        f"Best F1 max with respect to '{incorrect_class}' class (val set): {best_val_f1:.3f}"
+    )
+    
+    test_preds = (test_confs >= best_val_thresh).to(torch.uint8)
+    test_report = classification_report(
+        test_targets, test_preds, target_names=list(model.names.values()), digits=3
+    )
+    print("Classification report (test set):")
+    print(test_report)
 
     summary = (
         f"{header}"
-        f"Threshold (val, '{incorrect_class}' class): {best_t:.4f}\n"
-        f"F1 at threshold (val, '{incorrect_class}' class): {best_f1:.4f}\n\n"
+        f"Threshold (val, '{incorrect_class}' class): {best_val_thresh:.4f}\n"
+        f"F1 at threshold (val, '{incorrect_class}' class): {best_val_f1:.4f}\n\n"
         f"CLASSIFICATION REPORT — TEST SPLIT\n\n"
-        f"{report}"
+        f"{test_report}"
     )
-    report_path = Path(report_path)
+    
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(summary)
     print(f"\nReport saved to {report_path}")
 
-    return best_t, best_f1
+    return best_val_thresh, best_val_f1

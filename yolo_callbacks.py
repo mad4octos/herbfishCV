@@ -46,8 +46,8 @@ class LossPlotCallbacks:
 
         self.mode = mode
 
-        mpl_plot = MatplotlibPlot(figpath=figpath)
-        self.live_plot = PlotLosses(groups=groups, outputs=[mpl_plot])  # type: ignore[arg-type]
+        self.mpl_plot = MatplotlibPlot(figpath=figpath)
+        self.live_plot = PlotLosses(groups=groups, outputs=[self.mpl_plot])  # type: ignore[arg-type]
         self.live_logs: dict = {}
 
         self.f1_max: float = 0.0
@@ -55,6 +55,9 @@ class LossPlotCallbacks:
         self.max_f1_by_class: dict = {}
 
         self.plot_only = False
+
+    def on_train_start(self, trainer: DetectionTrainer | ClassificationTrainer):
+        self.mpl_plot.figpath = str(trainer.save_dir / "loss_plot.png")
 
     def on_train_epoch_end(self, trainer: DetectionTrainer | ClassificationTrainer):
         """Record the normalised training sub-losses for the current epoch."""
@@ -124,14 +127,14 @@ class LossPlotCallbacks:
             x = np.linspace(0, 1, 1000)
 
             f1_mean = smooth(f1_curve.mean(0), 0.1)
-            i = f1_mean.argmax()  # max F1 index
+            best_f1_idx = f1_mean.argmax()
 
             #################################
             # Store values to print them later
             #################################
 
             # Overall max f1 and conf
-            self.max_conf_for_f1 = x[i]
+            self.max_conf_for_f1 = x[best_f1_idx]
             self.f1_max = f1_mean.max()
 
             # Per-class max f1 and conf

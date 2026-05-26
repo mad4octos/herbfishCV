@@ -17,23 +17,22 @@ from ultralytics import YOLO
 # Local imports
 from yolo_dataset import RGBClassificationTrainer
 from yolo_tools import evaluate_and_report
+from yolo_callbacks import LossPlotCallbacks
+
+# Model architectures to search over
+MODEL_CANDIDATES = ["yolo11n-cls.pt", "yolo11s-cls.pt"]
+
+# Fixed augmentation values applied in every trial and final training
+FIXED_AUG_PARAMS = {
+    "flipud": 0.5,  # ultralytics default is 0.0
+    "scale": 0.0,   # ultralytics default is 0.5; avoid downscaling (avg image 111×125 px)
+}
 
 # Default hyperparameter ranges - these will be passed directly to the YOLO train method
 DEFAULT_HYP_RANGES = {
-    "lr0": (0.001, 0.1),  # Initial learning rate
-    "lrf": (0.01, 0.5),  # final LR as fraction of lr0
-    "momentum": (0.8, 0.99),  # SGD momentum
+    "lrf": (0.001, 0.1),  # the fraction of the initial learning rate that the scheduler decays to by the final epoch
     "weight_decay": (0.0001, 0.01),  # Weight decay
-    "hsv_h": (0.0, 0.1),  # HSV hue augmentation
-    "hsv_s": (0.0, 0.9),  # HSV saturation augmentation
-    "hsv_v": (0.0, 0.9),  # HSV value augmentation
-    "degrees": (0.0, 45.0),  # Rotation augmentation
-    "translate": (0.0, 0.2),  # Translation augmentation
-    "scale": (0.0, 0.9),  # Scale augmentation
-    "fliplr": (0.0, 0.5),  # Horizontal flip probability
-    "flipud": (0.0, 0.5),
     "dropout": (0.0, 0.5),  # Dropout rate
-    "mixup": (0.0, 0.5),
 }
 
 
@@ -41,6 +40,12 @@ def objective(trial: Trial, args):
     """Define the objective function to be optimized."""
     # Sample hyperparameters
     train_args = {}
+
+    # Include bg_mode as a categorical hyperparameter in the search
+    bg_mode = trial.suggest_categorical("bg_mode", ["gray", "overlay"])
+
+    # Create a fresh subclass per trial so bg_mode is isolated and never shared
+    trainer = type("TrialTrainer", (RGBClassificationTrainer,), {"bg_mode": bg_mode})
 
     # Add the base arguments
     train_args["data"] = args.data
@@ -50,11 +55,24 @@ def objective(trial: Trial, args):
     train_args["name"] = f"trial_{trial.number}"
     train_args["val"] = True  # Always validate during training
     train_args["deterministic"] = True
-    train_args["trainer"] = RGBClassificationTrainer
+    train_args["trainer"] = trainer
+    train_args["workers"] = args.workers
+    train_args["fraction"] = args.fraction
+
+    # The optimizer, learning rate (lr0) and momentum will be auto-selected.
+    # The optimizer is chosen between AdamW and SGD based on the number of training iterations.
+    train_args["optimizer"] = "auto"
+
+    train_args.update(FIXED_AUG_PARAMS)
+
+    # Ultralytics uses auto_augment=randaugment by default, which includes the following transformations:
+    # Identity, ShearX, ShearY, TranslateX, TranslateY, Rotate, Brightness, Color, Contrast, Sharpness, Posterize, 
+    # Solarize, AutoContrast, Equalize
+
 
     # Add hyperparameters that will be directly passed to train method
     for param_name, param_range in DEFAULT_HYP_RANGES.items():
-        if param_name == "lr0":
+        if param_name == "lrf":
             # Log-uniform distribution for learning rate
             train_args[param_name] = trial.suggest_float(
                 param_name, param_range[0], param_range[1], log=True
@@ -66,19 +84,25 @@ def objective(trial: Trial, args):
 
     # Add specific parameters you might want to tune
     train_args["batch"] = trial.suggest_categorical(
-        "batch", [4, 8, 16, 32, 64, 128, 256]
+        "batch", [128, 256, 384, 512, 1024]
     )
-    train_args["imgsz"] = trial.suggest_categorical("imgsz", [128, 192, 224, 256])
-
-    # Set bg_mode on the class before initializing the model
-    RGBClassificationTrainer.bg_mode = args.bg_mode
+    train_args["imgsz"] = trial.suggest_categorical("imgsz", [192, 224, 256])
 
     try:
-        # Use explicit model path from args directly
-        model = YOLO(args.model)
+        # Sample model architecture as a categorical hyperparameter
+        model_name = trial.suggest_categorical("model", MODEL_CANDIDATES)
+        model = YOLO(model_name)
 
-        # Print model path being used for debugging
-        print(f"Loading model from: {args.model}")
+        class_names = sorted(
+            p.name for p in (Path(args.data) / "train").iterdir() if p.is_dir()
+        )
+        cbs = LossPlotCallbacks(mode="classification", names=class_names)
+        model.add_callback("on_train_start", cbs.on_train_start)
+        model.add_callback("on_train_epoch_end", cbs.on_train_epoch_end)
+        model.add_callback("on_val_batch_end", cbs.on_val_batch_end)
+        model.add_callback("on_val_end", cbs.on_val_end)
+
+        print(f"Loading model from: {model_name}")
 
         # Train the model with the sampled hyperparameters directly passed
         results = model.train(**train_args)
@@ -93,22 +117,9 @@ def objective(trial: Trial, args):
 
 def evaluate_best_model(best_trial: FrozenTrial, args):
     """Evaluate the best model on the test split of the training dataset."""
-    # Get the best hyperparameters
-    best_params = {
-        param: best_trial.params.get(
-            param, (DEFAULT_HYP_RANGES[param][0] + DEFAULT_HYP_RANGES[param][1]) / 2
-        )
-        for param in DEFAULT_HYP_RANGES
-    }
-    best_params["batch"] = best_trial.params.get("batch", 16)
-    best_params["imgsz"] = best_trial.params.get("imgsz", 224)
-
-    # Add specific parameters that were tuned
-    batch_size = best_params["batch"]
-
-    # Save best hyperparameters to a YAML file for reference and reuse
-    with open("best_hyperparameters.yaml", "w") as f:
-        yaml.dump(best_params, f)
+    batch_size = best_trial.params.get("batch", 16)
+    imgsz = best_trial.params.get("imgsz", 224)
+    bg_mode = best_trial.params.get("bg_mode", "overlay")
 
     # Path to the best model from the optimization
     best_model_path = (
@@ -117,7 +128,7 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
 
     # Initialize the model with the best weights
     if best_model_path.exists():
-        RGBClassificationTrainer.bg_mode = args.bg_mode
+        RGBClassificationTrainer.bg_mode = bg_mode
         model = YOLO(str(best_model_path))
 
         header = (
@@ -130,9 +141,12 @@ def evaluate_best_model(best_trial: FrozenTrial, args):
             model,
             Path(args.data),
             batch_size,
+            imgsz,
             args.incorrect_class,
             header,
-            Path(args.project) / "best_trial_results.txt",
+            "best_trial_results.txt",
+            bg_mode=bg_mode,
+            scale=FIXED_AUG_PARAMS["scale"],
         )
     else:
         print(f"Best model weights not found at {best_model_path}")
@@ -150,9 +164,6 @@ def main():
         help="Path to dataset root directory (with train/val/test subdirectories)",
     )
     parser.add_argument(
-        "--model", type=str, default="yolo11n-cls.pt", help="Initial model path"
-    )
-    parser.add_argument(
         "--epochs", type=int, default=100, help="Number of epochs per trial"
     )
     parser.add_argument(
@@ -166,36 +177,36 @@ def main():
         "--project", type=str, default="runs/bayesian_opt", help="Project directory"
     )
     parser.add_argument(
-        "--bg-mode",
-        type=str,
-        default="overlay",
-        choices=["gray", "overlay"],
-        help="Background mode for RGBA images passed to RGBClassificationTrainer",
-    )
-    parser.add_argument(
         "--incorrect-class",
         type=str,
         default="incorrect",
         help="Name of the positive (incorrect) class used for threshold search",
     )
+    parser.add_argument(
+        "--fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of dataset to use per trial (0.0–1.0). Use a small value (e.g. 0.1) for quick smoke-test runs.",
+    )
     args = parser.parse_args()
 
-    # Print model path for debugging
-    print(f"Using model: {args.model}")
+    print(f"Searching over models: {MODEL_CANDIDATES}")
 
-    # Check if model path exists
-    model_path = Path(args.model)
-    if not model_path.exists() and not args.model.startswith("yolo"):
-        print(f"WARNING: Model path {args.model} does not exist!")
+    project_path = Path(args.project).resolve()
+    project_path.mkdir(parents=True, exist_ok=True)
+    storage = f"sqlite:///{project_path}/optuna_study.db"
 
     study = optuna.create_study(
         direction="maximize",
         study_name="yolo_bayesian_optimization",
         sampler=optuna.samplers.TPESampler(seed=42),
+        storage=storage,
     )
 
     print(f"Starting Bayesian Optimization with {args.trials} trials")
-    study.optimize(lambda trial: objective(trial, args), n_trials=args.trials)
+    study.optimize(
+        lambda trial: objective(trial, args), n_trials=args.trials, gc_after_trial=True
+    )
 
     # Print optimization results
     print("\nBest trial:")
@@ -213,6 +224,9 @@ def main():
     }
     best_hyp["batch"] = best_params.get("batch", 16)
     best_hyp["imgsz"] = best_params.get("imgsz", 224)
+    best_hyp["bg_mode"] = best_params.get("bg_mode", "overlay")
+    best_hyp["model"] = best_params.get("model", MODEL_CANDIDATES[0])
+    best_hyp.update(FIXED_AUG_PARAMS)
 
     with open("best_hyperparameters.yaml", "w") as f:
         yaml.dump(best_hyp, f)
