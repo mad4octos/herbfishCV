@@ -20,7 +20,7 @@ Output directory structure:
 
 Usage:
     python extract_crops_from_coco.py --coco-file annotations.json \
-        --images-dir ./images --output-dir ./output
+        --images-dir ./images --output-dir ./output --obs-id observation_id
 """
 
 # Standard Library imports
