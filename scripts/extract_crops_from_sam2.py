@@ -4,13 +4,24 @@ Reads video frames and their corresponding SAM2 masks, filters blobs by area
 and size thresholds, and saves cropped regions as RGBA PNGs. Each crop is
 sorted into 'correct' or 'incorrect' subdirectories based on a manually
 annotated errors CSV.
+
+Output directory structure
+--------------------------
+
+    output_folder/
+    └── {obs_id}/
+        ├── correct/
+        │   └── frame_{idx}_obj_{id}_blob_{num}.png
+        └── incorrect/
+            └── frame_{idx}_obj_{id}_blob_{num}.png
 """
 
 # Standard Library imports
-import sys
 import argparse
 import logging
+import sys
 from pathlib import Path
+from typing import Literal
 
 sys.path.append("..")
 
@@ -99,7 +110,7 @@ def partition_frames_by_errors(
     return incorrect_frames, correct_frames
 
 
-def get_first_frame_info(images_path: Path) -> tuple[Path, int, int]:
+def get_first_frame_info(images_path: Path) -> int:
     """Find the first image file and extract its frame number.
 
     Parameters
@@ -166,16 +177,18 @@ def extract_blobs(
     area_threshold: int = 200,
     min_size_threshold: int = 20,
     output_folder: Path | str = "output_blobs",
-    do_mask=False,
-    overlay=False,
+    rgba: bool = False,
+    bg_mode: Literal["gray", "overlay"] | None = None,
 ):
     """Crop fish and mask with blob object mask, then save to disk.
 
     - Filters blobs by area and minimum dimension
-    - crops each valid blob from the input image.
-    - If `do_mask`, the background outside the blob is preserved but the crop is tightly bounded by the blob;
-    - otherwise a plain bounding-box crop is used.
-    - Crops are saved as PNGs
+    - Crops each valid blob from the input image.
+    - If `rgba` is True, saves a 4-channel RGBA PNG with the blob mask as alpha.
+    - Otherwise uses `bg_mode` to control the background: `gray` fills it
+      with YOLO gray, `overlay` draws a coloured highlight, `None` keeps
+      the original pixels (plain bounding-box crop).
+    - Crops are saved as PNGs.
 
     """
 
@@ -193,13 +206,10 @@ def extract_blobs(
 
     for blob in filtered_blobs:
         observation_id = f"frame_{frame_idx}_obj_{obj_id}_blob_{blob.blob_num}"
-        if do_mask:
-            if overlay:
-                crop = blob.mask_and_crop_blob(input_image, remove_background=False)
-            else:
-                crop = blob.crop_blob_rgba(input_image)
+        if rgba:
+            crop = blob.crop_blob_rgba(input_image)
         else:
-            crop = blob.crop_from_image(input_image)
+            crop = blob.mask_and_crop_blob(input_image, bg_mode=bg_mode)
 
         blob_filename = Path(output_folder, f"{observation_id}.png")
         cv2.imwrite(str(blob_filename), crop)
@@ -289,8 +299,8 @@ def main(
                 area_threshold=area_threshold,
                 min_size_threshold=size_threshold,
                 output_folder=dst_dir,
-                do_mask=True,
-                overlay=overlay,
+                rgba=not overlay,
+                bg_mode="overlay" if overlay else None,
             )
 
 
@@ -302,7 +312,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python extract_crops.py \\
+  python extract_crops_from_sam2.py \\
     --images-dirpath "/path/to/MH_JM_060624_145_L" \\
     --masks-filepath "/path/to/CR_JM_060624_145_playa_largu_scuba_IPSpv_L_mask.pkl" \\
     --errors-csv-filepath "/path/to/SAM2_errors_ff_2024 - SAM2_errors.csv"
