@@ -73,7 +73,7 @@
     python multi_dataset_builder.py [--no-auto] [--ignore-missing-observation-ids]
         [--extracted-fps N --final-fps N [--original-fps N --sam2-start N]]
         [--subset {train,val,test}]
-```
+
 
 This will:
 
